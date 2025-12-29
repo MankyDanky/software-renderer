@@ -66,95 +66,97 @@ void Renderer::DrawLine(int x0, int y0, int x1, int y1, Color color) {
     }
 }
 
-void Renderer::DrawWireframe(const GameObject& obj, const CameraS& cam) {
-    Matrix4x4 matRotZ = MatrixMakeRotationZ(obj.transform.rotation.z);
-    Matrix4x4 matRotY = MatrixMakeRotationY(obj.transform.rotation.y);
-    Matrix4x4 matRotX = MatrixMakeRotationX(obj.transform.rotation.x);
-    Matrix4x4 matTrans = MatrixMakeTranslation(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z);
-
-    Matrix4x4 matWorld = Matrix4x4::Identity();
-    matWorld = MultiplyMatrix(matRotZ, matRotX);
-    matWorld = MultiplyMatrix(matWorld, matRotY);
-    matWorld = MultiplyMatrix(matWorld, matTrans);
-
-    Vector3S target = {0, 0, 1};
-    Matrix4x4 matCameraRot = MatrixMakeRotationY(cam.rotation.y);
-    Matrix4x4 matView = MatrixMakeTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
-
-    Matrix4x4 matProj = MatrixMakeProjection(cam.fov, (float)height / (float)width, 0.1f, 1000.0f);
-
-    Matrix4x4 matMVP = Matrix4x4::Identity();
-    matMVP = MultiplyMatrix(matWorld, matView);
-    matMVP = MultiplyMatrix(matMVP, matProj);
-
-    std::vector<Vector3S> projectedPoints;
-    for (Vector3S v : obj.mesh.vertices) {
-        Vector3S transformed = MultiplyVectorMatrix(v, matMVP);
-
-        transformed.x += 1.0f; transformed.y += 1.0f;
-        transformed.x *= 0.5f * (float)width;
-        transformed.y *= 0.5f * (float)height;;
-
-        projectedPoints.push_back(transformed);
-    }
-
-    for (int i = 0; i < obj.mesh.indices.size(); i+=3) {
-        int i0 = obj.mesh.indices[i];
-        int i1 = obj.mesh.indices[i+1];
-        int i2 = obj.mesh.indices[i+2];
-
-        Vector3S p0 = projectedPoints[i0];
-        Vector3S p1 = projectedPoints[i1];
-        Vector3S p2 = projectedPoints[i2];
-        DrawLine(p0.x, p0.y, p1.x, p1.y, GREEN);
-        DrawLine(p1.x, p1.y, p2.x, p2.y, GREEN);
-        DrawLine(p2.x, p2.y, p0.x, p0.y, GREEN);
-    }
-}
-
 float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
     return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
 }
 
-void Renderer::DrawTriangleFilled(Vector3S v0, Vector3S v1, Vector3S v2, Color color) {
-    int minX = std::min({v0.x, v1.x, v2.x});
-    int minY = std::min({v0.y, v1.y, v2.y});
-    int maxX = std::max({v0.x, v1.x, v2.x});
-    int maxY = std::max({v0.y, v1.y, v2.y});
+VSOutput Renderer::VertexShader(const Vector3S& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
+    VSOutput out;
+    Vector3S clipPos = MultiplyVectorMatrix(vertex, mvp);
 
-    minX = std::max(0, minX);
-    minY = std::max(0, minY);
-    maxX = std::min(width - 1, maxX);
-    maxY = std::min(height - 1, maxY);
+    out.position.x = (clipPos.x + 1.0f) * 0.5f * width;
+    out.position.y = (clipPos.y + 1.0f) * 0.5f * height;
+    out.position.z = clipPos.z;
 
-    float area = EdgeFunction(v0, v1, v2);
+    out.worldPos = MultiplyVectorMatrix(vertex, worldMat);
+
+    out.normal = Vector3Normalize(vertex);
+
+    return out;
+}
+
+Color Renderer::FragmentShader(const VSOutput& in) {
+    Vector3S lightDir = {-1, -1, -1};
+    lightDir = Vector3Normalize(lightDir);
+    Color objectColor = WHITE;
+
+    float ambient = 0.1f;
+
+    float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
+
+    float intensity = ambient + diff;
+    if (intensity > 1.0f) intensity = 1.0f;
+
+    return {
+        (unsigned char)(objectColor.r * intensity),
+        (unsigned char)(objectColor.g * intensity),
+        (unsigned char)(objectColor.b * intensity),
+        255
+    };
+}
+
+void Renderer::RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2) {
+    // Bounding Box
+    int minX = std::max(0, (int)std::min({v0.position.x, v1.position.x, v2.position.x}));
+    int minY = std::max(0, (int)std::min({v0.position.y, v1.position.y, v2.position.y}));
+    int maxX = std::min(width - 1, (int)std::max({v0.position.x, v1.position.x, v2.position.x}));
+    int maxY = std::min(height - 1, (int)std::max({v0.position.y, v1.position.y, v2.position.y}));
+
+    float area = EdgeFunction(v0.position, v1.position, v2.position);
+    if (area == 0) return; // Degenerate triangle
 
     for (int y = minY; y <= maxY; y++) {
         for (int x = minX; x <= maxX; x++) {
-            Vector3S p = {(float) x, (float) y, 0};
+            Vector3S p = {(float)x, (float)y, 0};
 
-            float w0 = EdgeFunction(v1, v2, p);
-            float w1 = EdgeFunction(v2, v0, p);
-            float w2 = EdgeFunction(v0, v1, p);
+            float w0 = EdgeFunction(v1.position, v2.position, p);
+            float w1 = EdgeFunction(v2.position, v0.position, p);
+            float w2 = EdgeFunction(v0.position, v1.position, p);
 
             if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) {
-                float lambda0 = w0/area;
-                float lambda1 = w1/area;
-                float lambda2 = w2/area;
+                // Barycentric Coordinates
+                float lambda0 = w0 / area;
+                float lambda1 = w1 / area;
+                float lambda2 = w2 / area;
 
-                float z = lambda0 * v0.z + lambda1 * v1.z + lambda2 * v2.z;
+                // Interpolate Z (Depth)
+                float z = lambda0 * v0.position.z + lambda1 * v1.position.z + lambda2 * v2.position.z;
 
                 int index = y * width + x;
                 if (z < depthBuffer[index]) {
                     depthBuffer[index] = z;
-                    PutPixel(x, y, color);
-                }   
+
+                    VSOutput pixelIn;
+                    pixelIn.position = p;
+                    pixelIn.normal.x = lambda0 * v0.normal.x + lambda1 * v1.normal.x + lambda2 * v2.normal.x;
+                    pixelIn.normal.y = lambda0 * v0.normal.y + lambda1 * v1.normal.y + lambda2 * v2.normal.y;
+                    pixelIn.normal.z = lambda0 * v0.normal.z + lambda1 * v1.normal.z + lambda2 * v2.normal.z;
+                    pixelIn.normal = Vector3Normalize(pixelIn.normal); // Re-normalize after interpolation!
+
+                    // Interpolate World Position
+                    pixelIn.worldPos.x = lambda0 * v0.worldPos.x + lambda1 * v1.worldPos.x + lambda2 * v2.worldPos.x;
+                    pixelIn.worldPos.y = lambda0 * v0.worldPos.y + lambda1 * v1.worldPos.y + lambda2 * v2.worldPos.y;
+                    pixelIn.worldPos.z = lambda0 * v0.worldPos.z + lambda1 * v1.worldPos.z + lambda2 * v2.worldPos.z;
+
+                    Color finalColor = FragmentShader(pixelIn);
+                    PutPixel(x, y, finalColor);
+                }
             }
         }
     }
 }
 
-void Renderer::DrawMeshFilled(const GameObject& obj, const CameraS& cam) {
+void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matRotZ = MatrixMakeRotationZ(obj.transform.rotation.z);
     Matrix4x4 matRotY = MatrixMakeRotationY(obj.transform.rotation.y);
     Matrix4x4 matRotX = MatrixMakeRotationX(obj.transform.rotation.x);
@@ -165,40 +167,21 @@ void Renderer::DrawMeshFilled(const GameObject& obj, const CameraS& cam) {
     matWorld = MultiplyMatrix(matWorld, matRotY);
     matWorld = MultiplyMatrix(matWorld, matTrans);
 
-    Vector3S target = {0, 0, 1};
-    Matrix4x4 matCameraRot = MatrixMakeRotationY(cam.rotation.y);
     Matrix4x4 matView = MatrixMakeTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
-
     Matrix4x4 matProj = MatrixMakeProjection(cam.fov, (float)height / (float)width, 0.1f, 1000.0f);
 
     Matrix4x4 matMVP = Matrix4x4::Identity();
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
-
-    std::vector<Vector3S> projectedPoints;
-    for (Vector3S v : obj.mesh.vertices) {
-        Vector3S transformed = MultiplyVectorMatrix(v, matMVP);
-
-        transformed.x += 1.0f; transformed.y += 1.0f;
-        transformed.x *= 0.5f * (float)width;
-        transformed.y *= 0.5f * (float)height;;
-
-        projectedPoints.push_back(transformed);
+    std::vector<VSOutput> processedVertices;
+    for (const auto& v : obj.mesh.vertices) {
+        processedVertices.push_back(VertexShader(v, matMVP, matWorld));
     }
 
-    for (int i = 0; i < obj.mesh.indices.size(); i+=3) {
-        int i0 = obj.mesh.indices[i];
-        int i1 = obj.mesh.indices[i+1];
-        int i2 = obj.mesh.indices[i+2];
-
-        Vector3S p0 = projectedPoints[i0];
-        Vector3S p1 = projectedPoints[i1];
-        Vector3S p2 = projectedPoints[i2];
-
-        Color faceColor = (i % 2 == 0) ? RED : MAROON;
-        if (i > 12) faceColor = (i % 2 == 0) ? BLUE : DARKBLUE;
-        if (i > 24) faceColor = (i % 2 == 0) ? GREEN : DARKGREEN;
-
-        DrawTriangleFilled(p0, p1, p2, faceColor);
+    for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
+        VSOutput& v0 = processedVertices[obj.mesh.indices[i]];
+        VSOutput& v1 = processedVertices[obj.mesh.indices[i+1]];
+        VSOutput& v2 = processedVertices[obj.mesh.indices[i+2]];
+        RasterizeTriangle(v0, v1, v2);
     }
 }

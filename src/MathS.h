@@ -17,8 +17,17 @@ inline Vector3S Vector3Scale(Vector3S v, float s) {
     return {v.x * s, v.y * s, v.z * s};
 }
 
-inline float Vector3Length(Vector3S v) {
+inline float Vector3Length(const Vector3S& v) {
     return sqrtf(v.x*v.x + v.y * v.y + v.z * v.z);
+}
+
+inline Vector3S Vector3Normalize(const Vector3S& v) {
+    float l = Vector3Length(v);
+    Vector3S out;
+    out.x = v.x / l;
+    out.y = v.y / l;
+    out.z = v.z / l;
+    return out;
 }
 
 struct Matrix4x4 {
@@ -34,7 +43,7 @@ struct Matrix4x4 {
     }
 };
 
-inline Vector3S MultiplyVectorMatrix(Vector3S& i, Matrix4x4& m) {
+inline Vector3S MultiplyVectorMatrix(const Vector3S& i, const Matrix4x4& m) {
     Vector3S v;
     v.x = i.x * m.m[0][0] + i.y * m.m[1][0] + i.z*m.m[2][0] + m.m[3][0];
     v.y = i.x * m.m[0][1] + i.y * m.m[1][1] + i.z*m.m[2][1] + m.m[3][1];

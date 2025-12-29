@@ -44,7 +44,7 @@ int main() {
         cube.transform.rotation.z += 0.02f;
         renderer.Clear(BLACK);
 
-        renderer.DrawMeshFilled(cube, camera);
+        renderer.DrawMesh(cube, camera);
 
         renderer.Render();
     }

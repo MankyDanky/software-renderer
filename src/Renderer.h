@@ -21,7 +21,4 @@ private:
 
     void PutPixel(int x, int y, Color color);
     void DrawLine(int x0, int y0, int x1, int y1, Color color);
-
-    Vector2 Project(Vector3 v, const Camera& cam);
-    Vector3 Rotate(Vector3 v, Vector3 rot);
 };

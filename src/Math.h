@@ -51,6 +51,13 @@ inline Matrix4x4 MatrixMakeRotationX(float angle) {
     return mat;
 }
 
+inline Matrix4x4 MatrixMakeRotationY(float angle) {
+    Matrix4x4 mat = Matrix4x4::Identity();
+    mat.m[0][0] = cosf(angle); mat.m[0][2] = sinf(angle);
+    mat.m[2][0] = -sinf(angle); mat.m[2][2] = cosf(angle);
+    return mat;
+}
+
 inline Matrix4x4 MatrixMakeRotationZ(float angle) {
     Matrix4x4 mat = Matrix4x4::Identity();
     mat.m[0][0] = cosf(angle); mat.m[0][1] = sinf(angle);

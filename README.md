@@ -1,5 +1,11 @@
 # C++ Software Renderer
 
+## Setup
+- Clone raylib from https://github.com/raysan5/raylib to vendor/
+- run cmake -S . -B build
+- run cmake --build build
+- run the program from build/bin/SoftwareRenderer
+
 ## Gallery
 
 https://github.com/user-attachments/assets/3b04a7d8-9ab8-4d03-ab57-0ff0be8644ee

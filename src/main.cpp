@@ -55,6 +55,12 @@ void DrawLines(int x0, int y0, int x1, int y1, Color color) {
     }
 }
 
+void DrawTriangleWireframe(int x0, int y0, int x1, int y1, int x2, int y2, Color color) {
+    DrawLines(x0, y0, x1, y1, color);
+    DrawLines(x1, y1, x2, y2, color);
+    DrawLines(x2, y2, x0, y0, color);
+}
+
 void ClearScreen(Color color) {
     for (int i = 0; i < screenWidth*screenHeight; i++) {
         pixelBuffer[i] = color;
@@ -72,7 +78,7 @@ int main() {
     while (!WindowShouldClose()) {
         ClearScreen(BLACK);
         PutPixel(screenWidth/2, screenHeight/2, RED);
-        DrawLine(0, 0, screenWidth-1, screenHeight-1, YELLOW);
+        DrawLines(0, 0, screenWidth-1, screenHeight-1, YELLOW);
         UpdateTexture(screenTexture, pixelBuffer);
         BeginDrawing();
         ClearBackground(RAYWHITE);

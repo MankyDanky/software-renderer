@@ -14,9 +14,13 @@ public:
 
     void DrawWireframe(const GameObject& obj, const CameraS& cam);
 
+    void DrawMeshFilled(const GameObject& obj, const CameraS& cam);
+    void DrawTriangleFilled(Vector3S v0, Vector3S v1, Vector3S v2, Color color);
+
 private:
     int width, height;
     Color* pixelBuffer;
+    float* depthBuffer;
     Texture2D screenTexture;
 
     void PutPixel(int x, int y, Color color);

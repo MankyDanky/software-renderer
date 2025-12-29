@@ -22,10 +22,19 @@ int main() {
         {-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1}, // Front vertices
         {-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1}      // Back vertices
     };
-    cubeMesh.edges = {
-        {0,1}, {1,2}, {2,3}, {3,0}, // Front Face
-        {4,5}, {5,6}, {6,7}, {7,4}, // Back Face
-        {0,4}, {1,5}, {2,6}, {3,7}  // Connecting Lines
+    cubeMesh.indices = {
+        // Front Face
+        0, 1, 2,  2, 3, 0,
+        // Right Face
+        1, 5, 6,  6, 2, 1,
+        // Back Face
+        7, 6, 5,  5, 4, 7,
+        // Left Face
+        4, 0, 3,  3, 7, 4,
+        // Top Face
+        3, 2, 6,  6, 7, 3,
+        // Bottom Face
+        4, 5, 1,  1, 0, 4
     };
     GameObject cube(cubeMesh);
     
@@ -35,7 +44,7 @@ int main() {
         cube.transform.rotation.z += 0.02f;
         renderer.Clear(BLACK);
 
-        renderer.DrawWireframe(cube, camera);
+        renderer.DrawMeshFilled(cube, camera);
 
         renderer.Render();
     }

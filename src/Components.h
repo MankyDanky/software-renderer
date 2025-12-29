@@ -10,5 +10,5 @@ struct TransformS {
 
 struct MeshS {
     std::vector<Vector3S> vertices;
-    std::vector<std::pair<int,int>> edges;
+    std::vector<int> indices;
 };

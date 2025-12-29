@@ -2,6 +2,11 @@
 #include <vector>
 #include "MathS.h"
 
+struct Vertex {
+    Vector3S position;
+    Vector3S normal;
+};
+
 struct TransformS {
     Vector3S position = {0, 0, 0};
     Vector3S rotation = {0, 0, 0};
@@ -9,6 +14,6 @@ struct TransformS {
 };
 
 struct MeshS {
-    std::vector<Vector3S> vertices;
+    std::vector<Vertex> vertices;
     std::vector<int> indices;
 };

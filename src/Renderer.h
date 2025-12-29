@@ -26,7 +26,7 @@ private:
     float* depthBuffer;
     Texture2D screenTexture;
 
-    VSOutput VertexShader(const Vector3S& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
+    VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
     Color FragmentShader(const VSOutput& interpolated);
     void RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);
 

@@ -56,6 +56,14 @@ inline Vector3S MultiplyVectorMatrix(const Vector3S& i, const Matrix4x4& m) {
     return v;
 }
 
+inline Vector3S MultiplyVectorDirection(const Vector3S& i, const Matrix4x4& m) {
+    Vector3S v;
+        v.x = i.x * m.m[0][0] + i.y * m.m[1][0] + i.z*m.m[2][0];
+    v.y = i.x * m.m[0][1] + i.y * m.m[1][1] + i.z*m.m[2][1];
+    v.z = i.x * m.m[0][2] + i.y * m.m[1][2] + i.z*m.m[2][2];
+    return v;
+}
+
 inline Matrix4x4 MultiplyMatrix(Matrix4x4& m1, Matrix4x4& m2) {
     Matrix4x4 out = {0};
     for (int c = 0; c < 4; c++)

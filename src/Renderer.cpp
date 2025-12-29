@@ -70,17 +70,18 @@ float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
     return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
 }
 
-VSOutput Renderer::VertexShader(const Vector3S& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
+VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
     VSOutput out;
-    Vector3S clipPos = MultiplyVectorMatrix(vertex, mvp);
+    Vector3S clipPos = MultiplyVectorMatrix(vertex.position, mvp);
 
     out.position.x = (clipPos.x + 1.0f) * 0.5f * width;
     out.position.y = (clipPos.y + 1.0f) * 0.5f * height;
     out.position.z = clipPos.z;
 
-    out.worldPos = MultiplyVectorMatrix(vertex, worldMat);
+    out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
 
-    out.normal = Vector3Normalize(vertex);
+    out.normal = MultiplyVectorDirection(vertex.normal, worldMat);
+    out.normal = Vector3Normalize(out.normal);
 
     return out;
 }

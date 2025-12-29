@@ -1,14 +1,14 @@
 #pragma once
 #include <vector>
-#include "Math.h"
+#include "MathS.h"
 
-struct Transform {
-    Vector3 position = {0, 0, 0};
-    Vector3 rotation = {0, 0, 0};
-    Vector3 scale = {1, 1, 1};
+struct TransformS {
+    Vector3S position = {0, 0, 0};
+    Vector3S rotation = {0, 0, 0};
+    Vector3S scale = {1, 1, 1};
 };
 
-struct Mesh {
-    std::vector<Vector3> vertices;
+struct MeshS {
+    std::vector<Vector3S> vertices;
     std::vector<std::pair<int,int>> edges;
 };

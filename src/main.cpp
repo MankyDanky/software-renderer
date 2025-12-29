@@ -1,7 +1,7 @@
 #include "raylib.h"
 #include "Renderer.h"
 #include "GameObject.h"
-#include "Camera.h"
+#include "CameraS.h"
 #include <vector>
 
 int main() {
@@ -14,10 +14,10 @@ int main() {
     SetTargetFPS(60);
 
     Renderer renderer(width, height);
-    Camera camera;
+    CameraS camera;
     camera.position = {0, 0, -5.0f};
 
-    Mesh cubeMesh;
+    MeshS cubeMesh;
     cubeMesh.vertices = {
         {-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1}, // Front vertices
         {-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1}      // Back vertices

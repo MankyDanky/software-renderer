@@ -1,11 +1,11 @@
 #pragma once
 #include <cmath>
 
-struct Vector3 {
+struct Vector3S {
     float x, y, z;
 };
 
-struct Vector2 {
+struct Vector2S {
     float x, y;
 };
 
@@ -22,8 +22,8 @@ struct Matrix4x4 {
     }
 };
 
-inline Vector3 MultiplyVectorMatrix(Vector3& i, Matrix4x4& m) {
-    Vector3 v;
+inline Vector3S MultiplyVectorMatrix(Vector3S& i, Matrix4x4& m) {
+    Vector3S v;
     v.x = i.x * m.m[0][0] + i.y * m.m[1][0] + i.z*m.m[2][0] + m.m[3][0];
     v.y = i.x * m.m[0][1] + i.y * m.m[1][1] + i.z*m.m[2][1] + m.m[3][1];
     v.z = i.x * m.m[0][2] + i.y * m.m[1][2] + i.z*m.m[2][2] + m.m[3][2];

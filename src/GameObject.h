@@ -3,8 +3,8 @@
 
 class GameObject {
 public: 
-    Mesh mesh;
-    Transform transform;
+    MeshS mesh;
+    TransformS transform;
 
-    GameObject(Mesh m) : mesh(m) {}
+    GameObject(MeshS m) : mesh(m) {}
 };

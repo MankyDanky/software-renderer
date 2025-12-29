@@ -62,7 +62,7 @@ void Renderer::DrawLine(int x0, int y0, int x1, int y1, Color color) {
     }
 }
 
-void Renderer::DrawWireframe(const GameObject& obj, const Camera& cam) {
+void Renderer::DrawWireframe(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matRotZ = MatrixMakeRotationZ(obj.transform.rotation.z);
     Matrix4x4 matRotY = MatrixMakeRotationY(obj.transform.rotation.y);
     Matrix4x4 matRotX = MatrixMakeRotationX(obj.transform.rotation.x);
@@ -73,7 +73,7 @@ void Renderer::DrawWireframe(const GameObject& obj, const Camera& cam) {
     matWorld = MultiplyMatrix(matWorld, matRotY);
     matWorld = MultiplyMatrix(matWorld, matTrans);
 
-    Vector3 target = {0, 0, 1};
+    Vector3S target = {0, 0, 1};
     Matrix4x4 matCameraRot = MatrixMakeRotationY(cam.rotation.y);
     Matrix4x4 matView = MatrixMakeTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
 
@@ -83,9 +83,9 @@ void Renderer::DrawWireframe(const GameObject& obj, const Camera& cam) {
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
 
-    std::vector<Vector3> projectedPoints;
-    for (Vector3 v : obj.mesh.vertices) {
-        Vector3 transformed = MultiplyVectorMatrix(v, matMVP);
+    std::vector<Vector3S> projectedPoints;
+    for (Vector3S v : obj.mesh.vertices) {
+        Vector3S transformed = MultiplyVectorMatrix(v, matMVP);
 
         transformed.x += 1.0f; transformed.y += 1.0f;
         transformed.x *= 0.5f * (float)width;
@@ -95,8 +95,8 @@ void Renderer::DrawWireframe(const GameObject& obj, const Camera& cam) {
     }
 
     for (const auto& edge : obj.mesh.edges) {
-        Vector3 p1 = projectedPoints[edge.first];
-        Vector3 p2 = projectedPoints[edge.second];
+        Vector3S p1 = projectedPoints[edge.first];
+        Vector3S p2 = projectedPoints[edge.second];
         DrawLine((int)p1.x, (int)p1.y, (int)p2.x, (int)p2.y, GREEN);
     }
 }

@@ -9,6 +9,18 @@ struct Vector2S {
     float x, y;
 };
 
+inline float Vector3Dot(Vector3S a, Vector3S b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+inline Vector3S Vector3Scale(Vector3S v, float s) {
+    return {v.x * s, v.y * s, v.z * s};
+}
+
+inline float Vector3Length(Vector3S v) {
+    return sqrtf(v.x*v.x + v.y * v.y + v.z * v.z);
+}
+
 struct Matrix4x4 {
     float m[4][4];
 

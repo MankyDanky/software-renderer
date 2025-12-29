@@ -92,7 +92,7 @@ VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const
 }
 
 Color Renderer::FragmentShader(const VSOutput& in) {
-    Vector3S lightDir = {-1.0f, -1.0f, -1.0f};
+    Vector3S lightDir = {0.5, 0.4, 1.0f};
     lightDir = Vector3Normalize(lightDir);
     Color objectColor = WHITE;
 
@@ -100,7 +100,7 @@ Color Renderer::FragmentShader(const VSOutput& in) {
 
     float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
 
-    float intensity = ambient + diff;
+    float intensity = ambient + diff*0.5;
     if (intensity > 1.0f) intensity = 1.0f;
 
     return {

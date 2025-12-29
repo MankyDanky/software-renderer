@@ -6,6 +6,8 @@
 
 struct VSOutput {
     Vector3S position;
+    float invW;
+    
     Vector3S worldPos;
     Vector3S normal;
 };

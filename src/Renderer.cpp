@@ -72,22 +72,27 @@ float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
 
 VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
     VSOutput out;
-    Vector3S clipPos = MultiplyVectorMatrix(vertex.position, mvp);
+    Vector4S clipPos = MultiplyVectorMatrix4(vertex.position, mvp);
 
-    out.position.x = (clipPos.x + 1.0f) * 0.5f * width;
-    out.position.y = (clipPos.y + 1.0f) * 0.5f * height;
-    out.position.z = clipPos.z;
+    out.invW = 1.0f / clipPos.w;
+
+    
+    out.position.x = (clipPos.x * out.invW + 1.0f) * 0.5f * width;
+    out.position.y = (clipPos.y * out.invW + 1.0f) * 0.5f * height;
+    out.position.z = clipPos.z * out.invW;
 
     out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
+    out.worldPos = Vector3Scale(out.worldPos, out.invW);
 
     out.normal = MultiplyVectorDirection(vertex.normal, worldMat);
     out.normal = Vector3Normalize(out.normal);
+    out.normal = Vector3Scale(out.normal, out.invW);
 
     return out;
 }
 
 Color Renderer::FragmentShader(const VSOutput& in) {
-    Vector3S lightDir = {-1, -1, -1};
+    Vector3S lightDir = {-1.0f, -1.0f, -1.0f};
     lightDir = Vector3Normalize(lightDir);
     Color objectColor = WHITE;
 
@@ -137,18 +142,22 @@ void Renderer::RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const V
                 if (z < depthBuffer[index]) {
                     depthBuffer[index] = z;
 
+                    float pixelInvW = lambda0 * v0.invW + lambda1 * v1.invW + lambda2 * v2.invW;
+                    float pixelW = 1.0f / pixelInvW;
                     VSOutput pixelIn;
                     pixelIn.position = p;
                     pixelIn.normal.x = lambda0 * v0.normal.x + lambda1 * v1.normal.x + lambda2 * v2.normal.x;
                     pixelIn.normal.y = lambda0 * v0.normal.y + lambda1 * v1.normal.y + lambda2 * v2.normal.y;
                     pixelIn.normal.z = lambda0 * v0.normal.z + lambda1 * v1.normal.z + lambda2 * v2.normal.z;
+                    pixelIn.normal = Vector3Scale(pixelIn.normal, pixelW);
+    
                     pixelIn.normal = Vector3Normalize(pixelIn.normal); // Re-normalize after interpolation!
 
                     // Interpolate World Position
                     pixelIn.worldPos.x = lambda0 * v0.worldPos.x + lambda1 * v1.worldPos.x + lambda2 * v2.worldPos.x;
                     pixelIn.worldPos.y = lambda0 * v0.worldPos.y + lambda1 * v1.worldPos.y + lambda2 * v2.worldPos.y;
                     pixelIn.worldPos.z = lambda0 * v0.worldPos.z + lambda1 * v1.worldPos.z + lambda2 * v2.worldPos.z;
-
+                    pixelIn.worldPos = Vector3Scale(pixelIn.worldPos, pixelW);
                     Color finalColor = FragmentShader(pixelIn);
                     PutPixel(x, y, finalColor);
                 }

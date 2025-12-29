@@ -4,15 +4,12 @@ project(SoftwareRenderer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Output binaries to a "bin" folder inside build
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # --- Dependency: Raylib ---
-# 1. Check if user has placed raylib in vendor/raylib
 if(EXISTS "${CMAKE_SOURCE_DIR}/vendor/raylib/CMakeLists.txt")
     message(STATUS "Found local raylib in vendor/raylib")
     add_subdirectory(vendor/raylib)
-# 2. If not, download it automatically
 else()
     message(STATUS "Raylib not found in vendor/. Downloading via FetchContent...")
     include(FetchContent)
@@ -25,9 +22,11 @@ else()
 endif()
 
 # --- Source ---
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h" "src/*.hpp")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 # --- Linking ---
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)

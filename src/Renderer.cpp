@@ -181,6 +181,10 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     matWorld = MultiplyMatrix(matWorld, matTrans);
 
     Matrix4x4 matView = MatrixMakeTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
+    Matrix4x4 matCamRotY = MatrixMakeRotationY(-cam.rotation.y);
+    Matrix4x4 matCamRotX = MatrixMakeRotationX(-cam.rotation.x);
+    matView = MultiplyMatrix(matView, matCamRotY);
+    matView = MultiplyMatrix(matView, matCamRotX);
     Matrix4x4 matProj = MatrixMakeProjection(cam.fov, (float)height / (float)width, 0.1f, 1000.0f);
 
     Matrix4x4 matMVP = Matrix4x4::Identity();

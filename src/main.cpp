@@ -8,6 +8,9 @@ int main() {
     const int width = 800;
     const int height = 450;
 
+    const float speed = 5.0f;
+    const float rotSpeed = 3.0f;
+
 
     InitWindow(width, height, "C++ Software Renderer");
 
@@ -44,6 +47,55 @@ int main() {
     GameObject cube(cubeMesh);
     
     while (!WindowShouldClose()) {
+        float dt = GetFrameTime();
+
+        float yaw = camera.rotation.y;
+        float pitch = camera.rotation.x;
+
+        float sy = sinf(yaw);
+        float cy = cosf(yaw);
+        float sp = sinf(pitch);
+        float cp = cosf(pitch);
+
+        Vector3S forward;
+        forward.x = -sy * cp;
+        forward.y = -sp;
+        forward.z = cy * cp;
+
+        Vector3S right;
+        right.x = cy;
+        right.y = 0;
+        right.z = sy;
+
+        Vector3S up;
+        up.x = -sy * sp;
+        up.y = cp;
+        up.z = cy * sp;
+
+        if (IsKeyDown(KEY_W)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(forward, speed * dt));
+        }
+        if (IsKeyDown(KEY_S)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(forward, -speed * dt));
+        }
+        if (IsKeyDown(KEY_D)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(right, speed * dt));
+        }
+        if (IsKeyDown(KEY_A)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(right, -speed * dt));
+        }
+        if (IsKeyDown(KEY_E)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(up, speed * dt));
+        }
+        if (IsKeyDown(KEY_Q)) {
+            camera.position = Vector3Add(camera.position, Vector3Scale(up, -speed * dt));
+        }
+
+        if (IsKeyDown(KEY_LEFT)) camera.rotation.y -= rotSpeed * dt;
+        if (IsKeyDown(KEY_RIGHT)) camera.rotation.y += rotSpeed * dt;
+        if (IsKeyDown(KEY_UP)) camera.rotation.x -= rotSpeed * dt;
+        if (IsKeyDown(KEY_DOWN)) camera.rotation.x += rotSpeed * dt;
+
         cube.transform.rotation.x += 0.01f;
         cube.transform.rotation.y += 0.02f;
         cube.transform.rotation.z += 0.02f;

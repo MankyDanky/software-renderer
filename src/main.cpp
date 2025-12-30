@@ -19,7 +19,7 @@ int main() {
     Renderer renderer(width, height);
     CameraS camera;
     camera.position = {0, 0, -5.0f};
-
+    
     MeshS cubeMesh;
     cubeMesh.vertices = {
         // Front Face (Normal: 0, 0, -1)
@@ -49,28 +49,9 @@ int main() {
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
-        float yaw = camera.rotation.y;
-        float pitch = camera.rotation.x;
-
-        float sy = sinf(yaw);
-        float cy = cosf(yaw);
-        float sp = sinf(pitch);
-        float cp = cosf(pitch);
-
-        Vector3S forward;
-        forward.x = -sy * cp;
-        forward.y = -sp;
-        forward.z = cy * cp;
-
-        Vector3S right;
-        right.x = cy;
-        right.y = 0;
-        right.z = sy;
-
-        Vector3S up;
-        up.x = -sy * sp;
-        up.y = cp;
-        up.z = cy * sp;
+        Vector3S right = {camera.rotationMatrix.m[0][0], camera.rotationMatrix.m[0][1], camera.rotationMatrix.m[0][2]};
+        Vector3S up = {camera.rotationMatrix.m[1][0], camera.rotationMatrix.m[1][1], camera.rotationMatrix.m[1][2]};
+        Vector3S forward = {camera.rotationMatrix.m[2][0], camera.rotationMatrix.m[2][1], camera.rotationMatrix.m[2][2]};
 
         if (IsKeyDown(KEY_W)) {
             camera.position = Vector3Add(camera.position, Vector3Scale(forward, speed * dt));
@@ -91,10 +72,22 @@ int main() {
             camera.position = Vector3Add(camera.position, Vector3Scale(up, -speed * dt));
         }
 
-        if (IsKeyDown(KEY_LEFT)) camera.rotation.y -= rotSpeed * dt;
-        if (IsKeyDown(KEY_RIGHT)) camera.rotation.y += rotSpeed * dt;
-        if (IsKeyDown(KEY_UP)) camera.rotation.x -= rotSpeed * dt;
-        if (IsKeyDown(KEY_DOWN)) camera.rotation.x += rotSpeed * dt;
+        if (IsKeyDown(KEY_LEFT)) {
+            Matrix4x4 rot = MatrixMakeRotationY(-rotSpeed * dt);
+            camera.rotationMatrix = MultiplyMatrix(rot, camera.rotationMatrix);
+        }
+        if (IsKeyDown(KEY_RIGHT)) {
+            Matrix4x4 rot = MatrixMakeRotationY(rotSpeed * dt);
+            camera.rotationMatrix = MultiplyMatrix(rot, camera.rotationMatrix);
+        }
+        if (IsKeyDown(KEY_UP)) {
+            Matrix4x4 rot = MatrixMakeRotationX(-rotSpeed * dt);
+            camera.rotationMatrix = MultiplyMatrix(rot, camera.rotationMatrix);
+        }
+        if (IsKeyDown(KEY_DOWN)) {
+            Matrix4x4 rot = MatrixMakeRotationX(rotSpeed * dt);
+            camera.rotationMatrix = MultiplyMatrix(rot, camera.rotationMatrix);
+        }
 
         cube.transform.rotation.x += 0.01f;
         cube.transform.rotation.y += 0.02f;

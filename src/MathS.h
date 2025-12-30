@@ -22,6 +22,14 @@ inline Vector3S Vector3Scale(Vector3S v, float s) {
     return {v.x * s, v.y * s, v.z * s};
 }
 
+inline Vector3S Vector3Cross(Vector3S a, Vector3S b) {
+    return {
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    };
+}
+
 inline Vector3S Vector3Add(Vector3S a, Vector3S b) {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
 }
@@ -83,7 +91,7 @@ inline Vector3S MultiplyVectorDirection(const Vector3S& i, const Matrix4x4& m) {
     return v;
 }
 
-inline Matrix4x4 MultiplyMatrix(Matrix4x4& m1, Matrix4x4& m2) {
+inline Matrix4x4 MultiplyMatrix(const Matrix4x4& m1, const Matrix4x4& m2) {
     Matrix4x4 out = {0};
     for (int c = 0; c < 4; c++)
         for (int r = 0; r < 4; r++)
@@ -129,4 +137,14 @@ inline Matrix4x4 MatrixMakeProjection(float fovDeg, float aspectRatio, float nea
     mat.m[2][3] = 1.0f;
     mat.m[3][3] = 0.0f;
     return mat;
+}
+
+inline Matrix4x4 MatrixTranspose(const Matrix4x4& m) {
+    Matrix4x4 out = {0};
+    for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+            out.m[r][c] = m.m[c][r];
+        }
+    }
+    return out;
 }

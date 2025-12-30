@@ -38,7 +38,7 @@ private:
     VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
     Color FragmentShader(const ScreenVertex& interpolated);
     void RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2);
-    ScreenVertex PerspectiveDivide(VSOutput& in);
+    ScreenVertex PerspectiveDivide(const VSOutput& in);
 
     void PutPixel(int x, int y, Color color);
     void DrawLine(int x0, int y0, int x1, int y1, Color color);

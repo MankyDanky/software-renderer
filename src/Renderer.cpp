@@ -80,7 +80,7 @@ VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const
     return out;
 }
 
-ScreenVertex Renderer::PerspectiveDivide(VSOutput& in) {
+ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
     ScreenVertex out;
     out.invW = 1.0f/in.position.w;
     out.position.x = (in.position.x * out.invW + 1.0f) * 0.5f * width;
@@ -165,6 +165,11 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
     }
 }
 
+bool ClipTriangle(Vector4S p0, Vector4S p1, Vector4S p2) {
+    if (p0.z <= -p0.w || p0.z >= p0.w || p1.z <= -p1.w || p1.z >= p1.w || p2.z <= -p2.w || p2.z >= p2.w) return true;
+    return false;
+}
+
 void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matRotZ = MatrixMakeRotationZ(obj.transform.rotation.z);
     Matrix4x4 matRotY = MatrixMakeRotationY(obj.transform.rotation.y);
@@ -183,18 +188,19 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matMVP = Matrix4x4::Identity();
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
-    std::vector<ScreenVertex> processedVertices;
+    std::vector<VSOutput> processedVertices;
     Vector3S forward = {cam.rotationMatrix.m[2][0], cam.rotationMatrix.m[2][1], cam.rotationMatrix.m[2][2]};
     for (const auto& v : obj.mesh.vertices) {
-        VSOutput vso = VertexShader(v, matMVP, matWorld);
-        ScreenVertex clip = PerspectiveDivide(vso);
-        processedVertices.push_back(clip);
+        processedVertices.push_back(VertexShader(v, matMVP, matWorld));
     }
 
     for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
-        ScreenVertex& v0 = processedVertices[obj.mesh.indices[i]];
-        ScreenVertex& v1 = processedVertices[obj.mesh.indices[i+1]];
-        ScreenVertex& v2 = processedVertices[obj.mesh.indices[i+2]];
+        if (ClipTriangle(processedVertices[obj.mesh.indices[i]].position, 
+            processedVertices[obj.mesh.indices[i+1]].position, 
+            processedVertices[obj.mesh.indices[i+2]].position)) continue;
+        ScreenVertex v0 = PerspectiveDivide(processedVertices[obj.mesh.indices[i]]);
+        ScreenVertex v1 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+1]]);
+        ScreenVertex v2 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+2]]);
 
         if (Vector3Dot(v0.normal, forward) >= 0) continue;
 

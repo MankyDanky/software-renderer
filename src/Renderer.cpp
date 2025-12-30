@@ -184,6 +184,7 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
     std::vector<ScreenVertex> processedVertices;
+    Vector3S forward = {cam.rotationMatrix.m[2][0], cam.rotationMatrix.m[2][1], cam.rotationMatrix.m[2][2]};
     for (const auto& v : obj.mesh.vertices) {
         VSOutput vso = VertexShader(v, matMVP, matWorld);
         ScreenVertex clip = PerspectiveDivide(vso);
@@ -194,6 +195,9 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
         ScreenVertex& v0 = processedVertices[obj.mesh.indices[i]];
         ScreenVertex& v1 = processedVertices[obj.mesh.indices[i+1]];
         ScreenVertex& v2 = processedVertices[obj.mesh.indices[i+2]];
+
+        if (Vector3Dot(v0.normal, forward) >= 0) continue;
+
         RasterizeTriangle(v0, v1, v2);
     }
 }

@@ -113,7 +113,6 @@ Color Renderer::FragmentShader(const ScreenVertex& in) {
 }
 
 void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2) {
-    // Bounding Box
     int minX = std::max(0, (int)std::min({v0.position.x, v1.position.x, v2.position.x}));
     int minY = std::max(0, (int)std::min({v0.position.y, v1.position.y, v2.position.y}));
     int maxX = std::min(width - 1, (int)std::max({v0.position.x, v1.position.x, v2.position.x}));
@@ -121,7 +120,7 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
 
     
     float area = EdgeFunction(v0.position, v1.position, v2.position);
-    if (area == 0) return; // Degenerate triangle
+    if (area == 0) return;
 
     for (int y = minY; y <= maxY; y++) {
         for (int x = minX; x <= maxX; x++) {
@@ -133,12 +132,10 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
             float w2 = EdgeFunction(v0.position, v1.position, p);
 
             if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) {
-                // Barycentric Coordinates
                 float lambda0 = w0 / area;
                 float lambda1 = w1 / area;
                 float lambda2 = w2 / area;
 
-                // Interpolate Z (Depth)
                 float z = lambda0 * v0.position.z + lambda1 * v1.position.z + lambda2 * v2.position.z;
 
                 int index = y * width + x;
@@ -154,9 +151,8 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
                     pixelIn.normal.z = lambda0 * v0.normal.z + lambda1 * v1.normal.z + lambda2 * v2.normal.z;
                     pixelIn.normal = Vector3Scale(pixelIn.normal, pixelW);
     
-                    pixelIn.normal = Vector3Normalize(pixelIn.normal); // Re-normalize after interpolation!
+                    pixelIn.normal = Vector3Normalize(pixelIn.normal);
 
-                    // Interpolate World Position
                     pixelIn.worldPos.x = lambda0 * v0.worldPos.x + lambda1 * v1.worldPos.x + lambda2 * v2.worldPos.x;
                     pixelIn.worldPos.y = lambda0 * v0.worldPos.y + lambda1 * v1.worldPos.y + lambda2 * v2.worldPos.y;
                     pixelIn.worldPos.z = lambda0 * v0.worldPos.z + lambda1 * v1.worldPos.z + lambda2 * v2.worldPos.z;

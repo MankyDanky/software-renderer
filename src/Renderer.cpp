@@ -72,26 +72,27 @@ float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
 
 VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
     VSOutput out;
-    Vector4S clipPos = MultiplyVectorMatrix4(vertex.position, mvp);
-
-    out.invW = 1.0f / clipPos.w;
-
-    
-    out.position.x = (clipPos.x * out.invW + 1.0f) * 0.5f * width;
-    out.position.y = (clipPos.y * out.invW + 1.0f) * 0.5f * height;
-    out.position.z = clipPos.z * out.invW;
+    out.position = MultiplyVectorMatrix4(vertex.position, mvp);
 
     out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
-    out.worldPos = Vector3Scale(out.worldPos, out.invW);
-
-    out.normal = MultiplyVectorDirection(vertex.normal, worldMat);
-    out.normal = Vector3Normalize(out.normal);
-    out.normal = Vector3Scale(out.normal, out.invW);
+    out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, worldMat));
 
     return out;
 }
 
-Color Renderer::FragmentShader(const VSOutput& in) {
+ScreenVertex Renderer::PerspectiveDivide(VSOutput& in) {
+    ScreenVertex out;
+    out.invW = 1.0f/in.position.w;
+    out.position.x = (in.position.x * out.invW + 1.0f) * 0.5f * width;
+    out.position.y = (in.position.y * out.invW  + 1.0f) * 0.5f * height;
+    out.position.z = in.position.z * out.invW;
+
+    out.worldPos = Vector3Scale(in.worldPos, out.invW );
+    out.normal = Vector3Scale(in.normal, out.invW );
+    return out;
+};
+
+Color Renderer::FragmentShader(const ScreenVertex& in) {
     Vector3S lightDir = {0.5, 0.4, 1.0f};
     lightDir = Vector3Normalize(lightDir);
     Color objectColor = WHITE;
@@ -111,13 +112,14 @@ Color Renderer::FragmentShader(const VSOutput& in) {
     };
 }
 
-void Renderer::RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2) {
+void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2) {
     // Bounding Box
     int minX = std::max(0, (int)std::min({v0.position.x, v1.position.x, v2.position.x}));
     int minY = std::max(0, (int)std::min({v0.position.y, v1.position.y, v2.position.y}));
     int maxX = std::min(width - 1, (int)std::max({v0.position.x, v1.position.x, v2.position.x}));
     int maxY = std::min(height - 1, (int)std::max({v0.position.y, v1.position.y, v2.position.y}));
 
+    
     float area = EdgeFunction(v0.position, v1.position, v2.position);
     if (area == 0) return; // Degenerate triangle
 
@@ -125,6 +127,7 @@ void Renderer::RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const V
         for (int x = minX; x <= maxX; x++) {
             Vector3S p = {(float)x, (float)y, 0};
 
+            
             float w0 = EdgeFunction(v1.position, v2.position, p);
             float w1 = EdgeFunction(v2.position, v0.position, p);
             float w2 = EdgeFunction(v0.position, v1.position, p);
@@ -141,10 +144,10 @@ void Renderer::RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const V
                 int index = y * width + x;
                 if (z < depthBuffer[index]) {
                     depthBuffer[index] = z;
-
+                    
                     float pixelInvW = lambda0 * v0.invW + lambda1 * v1.invW + lambda2 * v2.invW;
                     float pixelW = 1.0f / pixelInvW;
-                    VSOutput pixelIn;
+                    ScreenVertex pixelIn;
                     pixelIn.position = p;
                     pixelIn.normal.x = lambda0 * v0.normal.x + lambda1 * v1.normal.x + lambda2 * v2.normal.x;
                     pixelIn.normal.y = lambda0 * v0.normal.y + lambda1 * v1.normal.y + lambda2 * v2.normal.y;
@@ -183,15 +186,17 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matMVP = Matrix4x4::Identity();
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
-    std::vector<VSOutput> processedVertices;
+    std::vector<ScreenVertex> processedVertices;
     for (const auto& v : obj.mesh.vertices) {
-        processedVertices.push_back(VertexShader(v, matMVP, matWorld));
+        VSOutput vso = VertexShader(v, matMVP, matWorld);
+        ScreenVertex clip = PerspectiveDivide(vso);
+        processedVertices.push_back(clip);
     }
 
     for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
-        VSOutput& v0 = processedVertices[obj.mesh.indices[i]];
-        VSOutput& v1 = processedVertices[obj.mesh.indices[i+1]];
-        VSOutput& v2 = processedVertices[obj.mesh.indices[i+2]];
+        ScreenVertex& v0 = processedVertices[obj.mesh.indices[i]];
+        ScreenVertex& v1 = processedVertices[obj.mesh.indices[i+1]];
+        ScreenVertex& v2 = processedVertices[obj.mesh.indices[i+2]];
         RasterizeTriangle(v0, v1, v2);
     }
 }

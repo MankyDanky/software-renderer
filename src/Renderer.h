@@ -5,9 +5,16 @@
 #include "CameraS.h"
 
 struct VSOutput {
+    Vector4S position;
+    
+    Vector3S worldPos;
+    Vector3S normal;
+};
+
+struct ScreenVertex {
     Vector3S position;
     float invW;
-    
+
     Vector3S worldPos;
     Vector3S normal;
 };
@@ -29,8 +36,9 @@ private:
     Texture2D screenTexture;
 
     VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
-    Color FragmentShader(const VSOutput& interpolated);
-    void RasterizeTriangle(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);
+    Color FragmentShader(const ScreenVertex& interpolated);
+    void RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2);
+    ScreenVertex PerspectiveDivide(VSOutput& in);
 
     void PutPixel(int x, int y, Color color);
     void DrawLine(int x0, int y0, int x1, int y1, Color color);

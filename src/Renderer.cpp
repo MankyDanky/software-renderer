@@ -165,9 +165,71 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
     }
 }
 
-bool ClipTriangle(Vector4S p0, Vector4S p1, Vector4S p2) {
-    if ((p0.z <= -p0.w || p0.z >= p0.w) && (p1.z <= -p1.w || p1.z >= p1.w) && (p2.z <= -p2.w || p2.z >= p2.w)) return true;
-    return false;
+float Renderer::GetPlaneDistance(const Vector4S& v, int planeIndex) {
+    switch (planeIndex) {
+        case 0: return v.x + v.w;
+        case 1: return v.w - v.x;
+        case 2: return v.y + v.w;
+        case 3: return v.w - v.y;
+        case 4: return v.z;
+        case 5: return v.w - v.z;
+        default: return 0.0f;
+    }
+}
+
+VSOutput Renderer::LerpVSOutput(const VSOutput& a, const VSOutput& b, float t) {
+    VSOutput out;
+    out.position.x = a.position.x + t * (b.position.x - a.position.x);
+    out.position.y = a.position.y + t * (b.position.y - a.position.y);
+    out.position.z = a.position.z + t * (b.position.z - a.position.z);
+    out.position.w = a.position.w + t * (b.position.w - a.position.w);
+
+    out.worldPos.x = a.worldPos.x + t * (b.worldPos.x - a.worldPos.x);
+    out.worldPos.y = a.worldPos.y + t * (b.worldPos.y - a.worldPos.y);
+    out.worldPos.z = a.worldPos.z + t * (b.worldPos.z - a.worldPos.z);
+
+    out.normal.x = a.normal.x + t * (b.normal.x - a.normal.x);
+    out.normal.y = a.normal.y + t * (b.normal.y - a.normal.y);
+    out.normal.z = a.normal.z + t * (b.normal.z - a.normal.z);
+    return out;
+}
+
+std::vector<VSOutput> Renderer::ClipPolygonAgainstPlane(const std::vector<VSOutput>& polygon, int planeIndex) {
+    std::vector<VSOutput> output;
+
+    for (size_t i = 0; i < polygon.size(); i++) {
+        const VSOutput& current = polygon[i];
+        const VSOutput& next = polygon[(i+1) % polygon.size()];
+
+        float currentDist = GetPlaneDistance(current.position, planeIndex);
+        float nextDist = GetPlaneDistance(next.position, planeIndex);
+
+        bool currentInside = currentDist >= 0;
+        bool nextInside = nextDist >= 0;
+
+        if (currentInside) {
+            output.push_back(current);
+
+            if (!nextInside) {
+                float t = currentDist / (currentDist - nextDist);
+                output.push_back(LerpVSOutput(current, next, t));
+            }
+        } else if (nextInside) {
+            float t = currentDist / (currentDist - nextDist);
+            output.push_back(LerpVSOutput(current, next, t));
+        }
+    }
+
+    return output;
+}
+
+std::vector<VSOutput> Renderer::ClipTriangleAgainstFrustum(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2) {
+    std::vector<VSOutput> polygon = {v0, v1, v2};
+    for (int plane = 0; plane < 6; plane++) {
+        polygon = ClipPolygonAgainstPlane(polygon, plane);
+        if (polygon.empty()) break;
+    }
+    return polygon;
 }
 
 void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
@@ -195,14 +257,20 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
 
     for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
         const VSOutput& vs0 = processedVertices[obj.mesh.indices[i]];
+        const VSOutput& vs1 = processedVertices[obj.mesh.indices[i+1]];
+        const VSOutput& vs2 = processedVertices[obj.mesh.indices[i+2]];
         Vector3S toCamera = Vector3Sub(cam.position, vs0.worldPos);
         if (Vector3Dot(vs0.normal, toCamera) <= 0) continue;
 
-        ScreenVertex v0 = PerspectiveDivide(processedVertices[obj.mesh.indices[i]]);
-        ScreenVertex v1 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+1]]);
-        ScreenVertex v2 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+2]]);
+        std::vector<VSOutput> clippedPolygon = ClipTriangleAgainstFrustum(vs0, vs1, vs2);
 
-
-        RasterizeTriangle(v0, v1, v2);
+        if (clippedPolygon.size() >= 3) {
+            ScreenVertex sv0 = PerspectiveDivide(clippedPolygon[0]);
+            for (size_t j = 1; j < clippedPolygon.size() - 1; j++) {
+                ScreenVertex sv1 = PerspectiveDivide(clippedPolygon[j]);
+                ScreenVertex sv2 = PerspectiveDivide(clippedPolygon[j + 1]);
+                RasterizeTriangle(sv0, sv1, sv2);
+            }
+        }
     }
 }

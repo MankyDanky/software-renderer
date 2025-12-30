@@ -166,7 +166,7 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
 }
 
 bool ClipTriangle(Vector4S p0, Vector4S p1, Vector4S p2) {
-    if (p0.z <= -p0.w || p0.z >= p0.w || p1.z <= -p1.w || p1.z >= p1.w || p2.z <= -p2.w || p2.z >= p2.w) return true;
+    if ((p0.z <= -p0.w || p0.z >= p0.w) && (p1.z <= -p1.w || p1.z >= p1.w) && (p2.z <= -p2.w || p2.z >= p2.w)) return true;
     return false;
 }
 
@@ -189,20 +189,19 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
     std::vector<VSOutput> processedVertices;
-    Vector3S forward = {cam.rotationMatrix.m[2][0], cam.rotationMatrix.m[2][1], cam.rotationMatrix.m[2][2]};
     for (const auto& v : obj.mesh.vertices) {
         processedVertices.push_back(VertexShader(v, matMVP, matWorld));
     }
 
     for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
-        if (ClipTriangle(processedVertices[obj.mesh.indices[i]].position, 
-            processedVertices[obj.mesh.indices[i+1]].position, 
-            processedVertices[obj.mesh.indices[i+2]].position)) continue;
+        const VSOutput& vs0 = processedVertices[obj.mesh.indices[i]];
+        Vector3S toCamera = Vector3Sub(cam.position, vs0.worldPos);
+        if (Vector3Dot(vs0.normal, toCamera) <= 0) continue;
+
         ScreenVertex v0 = PerspectiveDivide(processedVertices[obj.mesh.indices[i]]);
         ScreenVertex v1 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+1]]);
         ScreenVertex v2 = PerspectiveDivide(processedVertices[obj.mesh.indices[i+2]]);
 
-        if (Vector3Dot(v0.normal, forward) >= 0) continue;
 
         RasterizeTriangle(v0, v1, v2);
     }

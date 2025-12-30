@@ -22,9 +22,9 @@ int main() {
     
     MeshS cubeMesh;
     cubeMesh.vertices = {
-        // Front Face (Normal: 0, 0, -1)
+        // Front Face (Normal: 0, 0, -1) - facing -Z
         {{-1, -1, -1}, {0, 0, -1}}, {{1, -1, -1}, {0, 0, -1}}, {{1, 1, -1}, {0, 0, -1}}, {{-1, 1, -1}, {0, 0, -1}},
-        // Back Face (Normal: 0, 0, 1)
+        // Back Face (Normal: 0, 0, 1) - facing +Z
         {{-1, -1, 1}, {0, 0, 1}}, {{1, -1, 1}, {0, 0, 1}}, {{1, 1, 1}, {0, 0, 1}}, {{-1, 1, 1}, {0, 0, 1}},
         // Left Face (Normal: -1, 0, 0)
         {{-1, -1, -1}, {-1, 0, 0}}, {{-1, 1, -1}, {-1, 0, 0}}, {{-1, 1, 1}, {-1, 0, 0}}, {{-1, -1, 1}, {-1, 0, 0}},
@@ -36,13 +36,14 @@ int main() {
         {{-1, -1, -1}, {0, -1, 0}}, {{1, -1, -1}, {0, -1, 0}}, {{1, -1, 1}, {0, -1, 0}}, {{-1, -1, 1}, {0, -1, 0}}
     };
 
+    // CCW winding when viewed from outside the cube
     cubeMesh.indices = {
-        0, 1, 2, 2, 3, 0,       // Front
-        4, 5, 6, 6, 7, 4,       // Back
-        8, 9, 10, 10, 11, 8,    // Left
-        12, 13, 14, 14, 15, 12, // Right
-        16, 17, 18, 18, 19, 16, // Top
-        20, 21, 22, 22, 23, 20  // Bottom
+        0, 2, 1,  0, 3, 2,       // Front  (looking from -Z toward +Z, CCW)
+        4, 5, 6,  4, 6, 7,       // Back   (looking from +Z toward -Z, CCW)
+        8, 10, 9,  8, 11, 10,    // Left   (looking from -X toward +X, CCW)
+        12, 13, 14, 12, 14, 15,  // Right  (looking from +X toward -X, CCW)
+        16, 18, 17, 16, 19, 18,  // Top    (looking from +Y toward -Y, CCW)
+        20, 21, 22, 20, 22, 23   // Bottom (looking from -Y toward +Y, CCW)
     };
     GameObject cube(cubeMesh);
     

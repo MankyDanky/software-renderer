@@ -1,12 +1,18 @@
 #include "Renderer.h"
 #include <cmath>
 
-Renderer::Renderer(int w, int h) : width(w), height(h) {
+Renderer::Renderer(int w, int h) : width(w), height(h), tileSize(64) {
     pixelBuffer = new Color[width * height];
     depthBuffer = new float[width * height];
     Image img = GenImageColor(width, height, BLACK);
     screenTexture = LoadTextureFromImage(img);
     UnloadImage(img);
+
+    numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4;
+    threadPool = std::make_unique<ThreadPool>(numThreads);
+
+    InitTiles();
 }
 
 Renderer::~Renderer() {
@@ -15,11 +21,67 @@ Renderer::~Renderer() {
     delete[] depthBuffer;
 }
 
-void Renderer::Clear(Color color) {
-    for (int i = 0; i < width * height; i++) {
-        pixelBuffer[i] = color;
-        depthBuffer[i] = std::numeric_limits<float>::max();
+void Renderer::InitTiles() {
+    tilesX = (width + tileSize - 1) / tileSize;
+    tilesY = (height + tileSize - 1) / tileSize;
+    tiles.resize(tilesX * tilesY);
+
+    for (int ty = 0; ty < tilesY; ty++) {
+        for (int tx = 0; tx < tilesX; tx++) {
+            Tile& tile = tiles[ty * tilesX + tx];
+            tile.startX = tx * tileSize;
+            tile.startY = ty * tileSize;
+            tile.endX = std::min(tile.startX + tileSize, width);
+            tile.endY = std::min(tile.startY + tileSize, height);
+            tile.triangleIndices.reserve(644);
+        }
     }
+}
+
+void Renderer::SetTileSize(int size) {
+    tileSize = size;
+    InitTiles();
+}
+
+int Renderer::GetThreadCount() const {
+    return numThreads;
+}
+
+void Renderer::ClearTiles() {
+    for (auto& tile : tiles) {
+        tile.triangleIndices.clear();
+    }
+    triangleBuffer.clear();
+}
+
+void Renderer::BinTriangleToTiles(int triangleIndex) {
+    const TriangleData& tri = triangleBuffer[triangleIndex];
+
+    int startTileX = std::max(0, tri.minX / tileSize);
+    int startTileY = std::max(0, tri.minY / tileSize);
+    int endTileX = std::min(tilesX - 1, tri.maxX / tileSize);
+    int endTileY = std::min(tilesY - 1, tri.maxY / tileSize);
+
+    for (int ty = startTileY; ty <= endTileY; ty++) {
+        for (int tx = startTileX; tx <= endTileX; tx++) {
+            tiles[ty * tilesX + tx].triangleIndices.push_back(triangleIndex);
+        }
+    }
+}
+
+void Renderer::Clear(Color color) {
+    int pixelsPerThread = (width * height + numThreads - 1) / numThreads;
+    for (unsigned int t = 0; t < numThreads; t++) {
+        int start = t * pixelsPerThread;
+        int end = std::min(start + pixelsPerThread, width * height);
+        threadPool->Enqueue([this, start, end, color]() {
+            for (int i = start; i < end; i++) {
+                pixelBuffer[i] = color;
+                depthBuffer[i] = std::numeric_limits<float>::max();
+            }
+        });
+    }
+    threadPool->WaitAll();
 }
 
 void Renderer::Render() {
@@ -70,56 +132,17 @@ float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
     return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
 }
 
-VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
-    VSOutput out;
-    out.position = MultiplyVectorMatrix4(vertex.position, mvp);
+void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile) {
+    int minX = std::max(tri.minX, tile.startX);
+    int minY = std::max(tri.minY, tile.startY);
+    int maxX = std::min(tri.maxX, tile.endX-1);
+    int maxY = std::min(tri.maxY, tile.endY - 1);
 
-    out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
-    out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, worldMat));
-
-    return out;
-}
-
-ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
-    ScreenVertex out;
-    out.invW = 1.0f/in.position.w;
-    out.position.x = (in.position.x * out.invW + 1.0f) * 0.5f * width;
-    out.position.y = (in.position.y * out.invW  + 1.0f) * 0.5f * height;
-    out.position.z = in.position.z * out.invW;
-
-    out.worldPos = Vector3Scale(in.worldPos, out.invW );
-    out.normal = Vector3Scale(in.normal, out.invW );
-    return out;
-};
-
-Color Renderer::FragmentShader(const ScreenVertex& in) {
-    Vector3S lightDir = {0.5, 0.4, 1.0f};
-    lightDir = Vector3Normalize(lightDir);
-    Color objectColor = WHITE;
-
-    float ambient = 0.1f;
-
-    float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
-
-    float intensity = ambient + diff*0.5;
-    if (intensity > 1.0f) intensity = 1.0f;
-
-    return {
-        (unsigned char)(objectColor.r * intensity),
-        (unsigned char)(objectColor.g * intensity),
-        (unsigned char)(objectColor.b * intensity),
-        255
-    };
-}
-
-void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2) {
-    int minX = std::max(0, (int)std::min({v0.position.x, v1.position.x, v2.position.x}));
-    int minY = std::max(0, (int)std::min({v0.position.y, v1.position.y, v2.position.y}));
-    int maxX = std::min(width - 1, (int)std::max({v0.position.x, v1.position.x, v2.position.x}));
-    int maxY = std::min(height - 1, (int)std::max({v0.position.y, v1.position.y, v2.position.y}));
-
+    const ScreenVertex& v0 = tri.v0;
+    const ScreenVertex& v1 = tri.v1;
+    const ScreenVertex& v2 = tri.v2;
     
-    float area = EdgeFunction(v0.position, v1.position, v2.position);
+    float area = tri.area;
     if (area == 0) return;
 
     for (int y = minY; y <= maxY; y++) {
@@ -163,6 +186,56 @@ void Renderer::RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1,
             }
         }
     }
+}
+
+void Renderer::RasterizeTile(int tileIndex) {
+    const Tile& tile = tiles[tileIndex];
+
+    for (int triIdx : tile.triangleIndices) {
+        RasterizeTriangleInTile(triangleBuffer[triIdx], tile);
+    }
+}
+
+VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
+    VSOutput out;
+    out.position = MultiplyVectorMatrix4(vertex.position, mvp);
+
+    out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
+    out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, worldMat));
+
+    return out;
+}
+
+ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
+    ScreenVertex out;
+    out.invW = 1.0f/in.position.w;
+    out.position.x = (in.position.x * out.invW + 1.0f) * 0.5f * width;
+    out.position.y = (in.position.y * out.invW  + 1.0f) * 0.5f * height;
+    out.position.z = in.position.z * out.invW;
+
+    out.worldPos = Vector3Scale(in.worldPos, out.invW );
+    out.normal = Vector3Scale(in.normal, out.invW );
+    return out;
+};
+
+Color Renderer::FragmentShader(const ScreenVertex& in) {
+    Vector3S lightDir = {0.5, 0.4, 1.0f};
+    lightDir = Vector3Normalize(lightDir);
+    Color objectColor = WHITE;
+
+    float ambient = 0.1f;
+
+    float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
+
+    float intensity = ambient + diff*0.5;
+    if (intensity > 1.0f) intensity = 1.0f;
+
+    return {
+        (unsigned char)(objectColor.r * intensity),
+        (unsigned char)(objectColor.g * intensity),
+        (unsigned char)(objectColor.b * intensity),
+        255
+    };
 }
 
 float Renderer::GetPlaneDistance(const Vector4S& v, int planeIndex) {
@@ -250,6 +323,9 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     Matrix4x4 matMVP = Matrix4x4::Identity();
     matMVP = MultiplyMatrix(matWorld, matView);
     matMVP = MultiplyMatrix(matMVP, matProj);
+
+    ClearTiles();
+
     std::vector<VSOutput> processedVertices;
     for (const auto& v : obj.mesh.vertices) {
         processedVertices.push_back(VertexShader(v, matMVP, matWorld));
@@ -269,8 +345,36 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
             for (size_t j = 1; j < clippedPolygon.size() - 1; j++) {
                 ScreenVertex sv1 = PerspectiveDivide(clippedPolygon[j]);
                 ScreenVertex sv2 = PerspectiveDivide(clippedPolygon[j + 1]);
-                RasterizeTriangle(sv0, sv1, sv2);
+
+                TriangleData tri;
+                tri.v0 = sv0;
+                tri.v1 = sv1;
+                tri.v2 = sv2;
+                tri.area = EdgeFunction(sv0.position, sv1.position, sv2.position);
+
+                if (std::abs(tri.area) < 0.001f) continue;
+
+                tri.minX = std::max(0, (int)std::floor(std::min({sv0.position.x, sv1.position.x, sv2.position.x})));
+                tri.minY = std::max(0, (int)std::floor(std::min({sv0.position.y, sv1.position.y, sv2.position.y})));
+                tri.maxX = std::min(width - 1, (int)std::ceil(std::max({sv0.position.x, sv1.position.x, sv2.position.x})));
+                tri.maxY = std::min(height - 1, (int)std::ceil(std::max({sv0.position.y, sv1.position.y, sv2.position.y})));
+
+                if (tri.minX > tri.maxX || tri.minY > tri.maxY) continue;
+
+                int triIndex = static_cast<int>(triangleBuffer.size());
+                triangleBuffer.push_back(tri);
+                BinTriangleToTiles(triIndex);
             }
         }
     }
+
+    int totalTiles = tilesX * tilesY;
+    for (int i = 0; i < totalTiles; i++) {
+        if (!tiles[i].triangleIndices.empty()) {
+            threadPool->Enqueue([this, i]() {
+                RasterizeTile(i);
+            });
+        }
+    }
+    threadPool->WaitAll();
 }

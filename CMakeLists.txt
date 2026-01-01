@@ -21,6 +21,10 @@ else()
     FetchContent_MakeAvailable(raylib)
 endif()
 
+# --- Multithreading Support ---
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # --- Source ---
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h" "src/*.hpp")
 
@@ -28,5 +32,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
+
 # --- Linking ---
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)

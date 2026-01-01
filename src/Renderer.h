@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "MathS.h"
 #include "GameObject.h"
+#include "ThreadPool.h"
 #include "CameraS.h"
 
 struct VSOutput {
@@ -19,6 +20,18 @@ struct ScreenVertex {
     Vector3S normal;
 };
 
+struct TriangleData {
+    ScreenVertex v0, v1, v2;
+    float area;
+    int minX, minY, maxX, maxY;
+};
+
+struct Tile {
+    int startX, startY;
+    int endX, endY;
+    std::vector<int> triangleIndices;
+};
+
 class Renderer {
 public:
     Renderer(int width, int height);
@@ -29,15 +42,31 @@ public:
 
     void DrawMesh(const GameObject& obj, const CameraS& cam);
 
+    void SetTileSize(int size);
+    int GetThreadCount() const;
+
 private:
     int width, height;
     Color* pixelBuffer;
     float* depthBuffer;
     Texture2D screenTexture;
 
+    std::unique_ptr<ThreadPool> threadPool;
+    unsigned int numThreads;
+
+    int tileSize;
+    int tilesX, tilesY;
+    std::vector<Tile> tiles;
+    std::vector<TriangleData> triangleBuffer;
+
+    void InitTiles();
+    void ClearTiles();
+    void BinTriangleToTiles(int triangleIndex);
+    void RasterizeTile(int tileIndex);
+    void RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile);
+
     VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
     Color FragmentShader(const ScreenVertex& interpolated);
-    void RasterizeTriangle(const ScreenVertex& v0, const ScreenVertex& v1, const ScreenVertex& v2);
     ScreenVertex PerspectiveDivide(const VSOutput& in);
 
     std::vector<VSOutput> ClipTriangleAgainstFrustum(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);

@@ -62,11 +62,11 @@ private:
     void InitTiles();
     void ClearTiles();
     void BinTriangleToTiles(int triangleIndex);
-    void RasterizeTile(int tileIndex);
-    void RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile);
+    void RasterizeTile(int tileIndex, const CameraS& cam);
+    void RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile, const CameraS& cam);
 
     VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
-    Color FragmentShader(const ScreenVertex& interpolated);
+    Color FragmentShader(const ScreenVertex& interpolated, const CameraS& cam);
     ScreenVertex PerspectiveDivide(const VSOutput& in);
 
     std::vector<VSOutput> ClipTriangleAgainstFrustum(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);

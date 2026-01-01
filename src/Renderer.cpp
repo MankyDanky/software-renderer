@@ -132,7 +132,7 @@ float EdgeFunction(Vector3S a, Vector3S b, Vector3S p) {
     return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
 }
 
-void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile) {
+void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile, const CameraS& cam) {
     int minX = std::max(tri.minX, tile.startX);
     int minY = std::max(tri.minY, tile.startY);
     int maxX = std::min(tri.maxX, tile.endX-1);
@@ -180,7 +180,7 @@ void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile
                     pixelIn.worldPos.y = lambda0 * v0.worldPos.y + lambda1 * v1.worldPos.y + lambda2 * v2.worldPos.y;
                     pixelIn.worldPos.z = lambda0 * v0.worldPos.z + lambda1 * v1.worldPos.z + lambda2 * v2.worldPos.z;
                     pixelIn.worldPos = Vector3Scale(pixelIn.worldPos, pixelW);
-                    Color finalColor = FragmentShader(pixelIn);
+                    Color finalColor = FragmentShader(pixelIn, cam);
                     PutPixel(x, y, finalColor);
                 }
             }
@@ -188,11 +188,11 @@ void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile
     }
 }
 
-void Renderer::RasterizeTile(int tileIndex) {
+void Renderer::RasterizeTile(int tileIndex, const CameraS& cam) {
     const Tile& tile = tiles[tileIndex];
 
     for (int triIdx : tile.triangleIndices) {
-        RasterizeTriangleInTile(triangleBuffer[triIdx], tile);
+        RasterizeTriangleInTile(triangleBuffer[triIdx], tile, cam);
     }
 }
 
@@ -218,16 +218,19 @@ ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
     return out;
 };
 
-Color Renderer::FragmentShader(const ScreenVertex& in) {
+Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam) {
     Vector3S lightDir = {0.5, 0.4, 1.0f};
+    Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, in.worldPos));
     lightDir = Vector3Normalize(lightDir);
     Color objectColor = WHITE;
 
     float ambient = 0.1f;
+    Vector3S refl = Vector3Sub(lightDir, Vector3Scale(Vector3Scale(in.normal, Vector3Dot(in.normal, lightDir)), 2));
+    float specularity = powf(std::max(0.0f, Vector3Dot(viewDir, refl)), 16);
 
     float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
 
-    float intensity = ambient + diff*0.5;
+    float intensity = std::min(1.0f, ambient + diff*0.5f + specularity * 0.5f);
     if (intensity > 1.0f) intensity = 1.0f;
 
     return {
@@ -371,8 +374,8 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
     int totalTiles = tilesX * tilesY;
     for (int i = 0; i < totalTiles; i++) {
         if (!tiles[i].triangleIndices.empty()) {
-            threadPool->Enqueue([this, i]() {
-                RasterizeTile(i);
+            threadPool->Enqueue([this, i, cam]() {
+                RasterizeTile(i, cam);
             });
         }
     }

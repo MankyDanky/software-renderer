@@ -180,7 +180,11 @@ void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile
                     pixelIn.worldPos.y = lambda0 * v0.worldPos.y + lambda1 * v1.worldPos.y + lambda2 * v2.worldPos.y;
                     pixelIn.worldPos.z = lambda0 * v0.worldPos.z + lambda1 * v1.worldPos.z + lambda2 * v2.worldPos.z;
                     pixelIn.worldPos = Vector3Scale(pixelIn.worldPos, pixelW);
-                    Color finalColor = FragmentShader(pixelIn, cam);
+
+                    pixelIn.uv.x = (lambda0 * v0.uv.x + lambda1 * v1.uv.x + lambda2 * v2.uv.x) * pixelW;
+                    pixelIn.uv.y = (lambda0 * v0.uv.y + lambda1 * v1.uv.y + lambda2 * v2.uv.y) * pixelW;
+
+                    Color finalColor = FragmentShader(pixelIn, cam, tri.texture);
                     PutPixel(x, y, finalColor);
                 }
             }
@@ -202,6 +206,7 @@ VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const
 
     out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
     out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, worldMat));
+    out.uv = vertex.uv;
 
     return out;
 }
@@ -215,14 +220,23 @@ ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
 
     out.worldPos = Vector3Scale(in.worldPos, out.invW );
     out.normal = Vector3Scale(in.normal, out.invW );
+
+    out.uv.x = in.uv.x * out.invW;
+    out.uv.y = in.uv.y * out.invW;
+
     return out;
 };
 
-Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam) {
+Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const TextureS* texture) {
     Vector3S lightDir = {0.5, 0.4, 1.0f};
     Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, in.worldPos));
     lightDir = Vector3Normalize(lightDir);
-    Color objectColor = WHITE;
+    Color objectColor;
+    if (texture && texture->pixels) {
+        objectColor = texture->SampleBilinear(in.uv.x, in.uv.y);
+    } else {
+        objectColor = WHITE;
+    }
 
     float ambient = 0.1f;
     Vector3S refl = Vector3Sub(lightDir, Vector3Scale(Vector3Scale(in.normal, Vector3Dot(in.normal, lightDir)), 2));
@@ -267,6 +281,10 @@ VSOutput Renderer::LerpVSOutput(const VSOutput& a, const VSOutput& b, float t) {
     out.normal.x = a.normal.x + t * (b.normal.x - a.normal.x);
     out.normal.y = a.normal.y + t * (b.normal.y - a.normal.y);
     out.normal.z = a.normal.z + t * (b.normal.z - a.normal.z);
+
+    out.uv.x = a.uv.x + t * (b.uv.x - a.uv.x);
+    out.uv.y = a.uv.y + t * (b.uv.y - a.uv.y);
+
     return out;
 }
 
@@ -354,6 +372,7 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
                 tri.v1 = sv1;
                 tri.v2 = sv2;
                 tri.area = EdgeFunction(sv0.position, sv1.position, sv2.position);
+                tri.texture = obj.texture;
 
                 if (std::abs(tri.area) < 0.001f) continue;
 

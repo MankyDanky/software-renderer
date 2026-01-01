@@ -5,6 +5,7 @@
 struct Vertex {
     Vector3S position;
     Vector3S normal;
+    Vector2S uv;
 };
 
 struct TransformS {

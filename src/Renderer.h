@@ -4,12 +4,14 @@
 #include "GameObject.h"
 #include "ThreadPool.h"
 #include "CameraS.h"
+#include "Texture.h"
 
 struct VSOutput {
     Vector4S position;
     
     Vector3S worldPos;
     Vector3S normal;
+    Vector2S uv;
 };
 
 struct ScreenVertex {
@@ -18,12 +20,14 @@ struct ScreenVertex {
 
     Vector3S worldPos;
     Vector3S normal;
+    Vector2S uv;
 };
 
 struct TriangleData {
     ScreenVertex v0, v1, v2;
     float area;
     int minX, minY, maxX, maxY;
+    const TextureS* texture;
 };
 
 struct Tile {
@@ -66,7 +70,7 @@ private:
     void RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile, const CameraS& cam);
 
     VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
-    Color FragmentShader(const ScreenVertex& interpolated, const CameraS& cam);
+    Color FragmentShader(const ScreenVertex& interpolated, const CameraS& cam, const TextureS* texture);
     ScreenVertex PerspectiveDivide(const VSOutput& in);
 
     std::vector<VSOutput> ClipTriangleAgainstFrustum(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);

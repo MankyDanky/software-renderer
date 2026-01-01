@@ -16,10 +16,12 @@ public:
 
         std::vector<Vector3S> positions;
         std::vector<Vector3S> normals;
+        std::vector<Vector2S> texCoords;
 
         struct FaceVertex {
             int posIndex;
             int normalIndex;
+            int uvIndex;
         };
         std::vector<std::vector<FaceVertex>> faces;
         std::string line;
@@ -32,6 +34,10 @@ public:
                 Vector3S pos;
                 iss >> pos.x >> pos.y >> pos.z;
                 positions.push_back(pos);
+            } else if (prefix == "vt") {
+                Vector2S uv;
+                iss >> uv.x >> uv.y;
+                texCoords.push_back(uv);
             } else if (prefix == "vn") {
                 Vector3S normal;
                 iss >> normal.x >> normal.y >> normal.z;
@@ -40,7 +46,7 @@ public:
                 std::vector<FaceVertex> faceVerts;
                 std::string vertexData;
                 while (iss >> vertexData) {
-                    FaceVertex fv = {-1, -1};
+                    FaceVertex fv = {-1, -1, -1};
 
                     size_t firstSlash = vertexData.find('/');
                     if (firstSlash == std::string::npos) {
@@ -48,6 +54,14 @@ public:
                     } else {
                         fv.posIndex = std::stoi(vertexData.substr(0, firstSlash)) - 1;
                         size_t secondSlash = vertexData.find('/', firstSlash + 1);
+
+                        std::string uvStr = vertexData.substr(firstSlash + 1, 
+                            secondSlash != std::string::npos ? secondSlash - firstSlash - 1 : std::string::npos);
+                        
+                        if (!uvStr.empty()) {
+                            fv.uvIndex = std::stoi(uvStr) - 1;
+                        }
+
                         if (secondSlash != std::string::npos) {
                             std::string normalStr = vertexData.substr(secondSlash + 1);
                             if (!normalStr.empty()) {
@@ -76,6 +90,12 @@ public:
                 Vertex v;
                 v.position = positions[face[i].posIndex];
 
+                if (face[i].uvIndex >= 0 && face[i].uvIndex < static_cast<int>(texCoords.size())) {
+                    v.uv = texCoords[face[i].uvIndex];
+                } else {
+                    v.uv = {0, 0};
+                }
+
                 if (face[i].normalIndex >= 0 && face[i].normalIndex < static_cast<int>(normals.size())) {
                     v.normal = normals[face[i].normalIndex];
                 } else {
@@ -98,6 +118,7 @@ public:
         }
 
         std::cout << "Loaded OBJ: " << positions.size() << " positions, "
+                  << texCoords.size() << "UVs, "
                   << normals.size() << " normals, "
                   << outMesh.vertices.size() << " vertices, "
                   << outMesh.indices.size() / 3 << " triangles"<<std::endl;

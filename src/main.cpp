@@ -21,14 +21,14 @@ int main() {
     camera.position = {0, 0, -5.0f};
     
     MeshS loadedMesh;
-    if (!ObjLoader::LoadOBJ("models/suzanne.obj", loadedMesh)) {
-        TraceLog(LOG_ERROR, "Failed to load OBJ file: models/suzanne.obj");
+    if (!ObjLoader::LoadOBJ("models/Chicken.obj", loadedMesh)) {
+        TraceLog(LOG_ERROR, "Failed to load OBJ file");
         CloseWindow();
         return -1;
     }
     
     TextureS monkeyTexture;
-    bool hasLoaded = monkeyTexture.Load("models/suzanneTexture.png");
+    bool hasLoaded = monkeyTexture.Load("models/ChickenTexture.png");
     
     GameObject cube(loadedMesh);
     if (hasLoaded) {

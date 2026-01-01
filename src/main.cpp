@@ -15,8 +15,6 @@ int main() {
 
     InitWindow(width, height, "C++ Software Renderer");
 
-    SetTargetFPS(60);
-
     Renderer renderer(width, height);
     CameraS camera;
     camera.position = {0, 0, -5.0f};
@@ -94,9 +92,9 @@ int main() {
             camera.rotationMatrix = MultiplyMatrix(rot, camera.rotationMatrix);
         }
 
-        cube.transform.rotation.x += 0.01f;
-        cube.transform.rotation.y += 0.02f;
-        cube.transform.rotation.z += 0.02f;
+        cube.transform.rotation.x += dt;
+        cube.transform.rotation.y += 2 * dt;
+        cube.transform.rotation.z += 3 * dt;
         renderer.Clear(BLACK);
 
         renderer.DrawMesh(cube, camera);

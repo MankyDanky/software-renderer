@@ -53,6 +53,17 @@ int Renderer::GetThreadCount() const {
 #endif
 }
 
+const char* Renderer::GetShadingModeName() const {
+    switch (currentShadingMode) {
+        case ShadingMode::Phong:   return "Phong";
+        case ShadingMode::Gouraud: return "Gouraud";
+        case ShadingMode::Flat:    return "Flat";
+        case ShadingMode::Cel:     return "Cel/Toon";
+        case ShadingMode::Unlit:   return "Unlit";
+        default:                   return "Unknown";
+    }
+}
+
 
 void Renderer::ClearTiles() {
     for (auto& tile : tiles) {
@@ -103,7 +114,14 @@ void Renderer::Render() {
     BeginDrawing();
     ClearBackground(RAYWHITE);
     DrawTexture(screenTexture, 0, 0, WHITE);
-    DrawFPS(10, 10);
+    
+    int fps = GetFPS();
+    DrawText(TextFormat("FPS: %d", fps), 10, 10, 18, DARKGRAY);
+    
+    const char* shaderText = TextFormat("Shader: %s", GetShadingModeName());
+    int textWidth = MeasureText(shaderText, 18);
+    DrawText(shaderText, width - textWidth - 10, 10, 18, DARKGRAY);
+    
     EndDrawing();
 }
 
@@ -198,7 +216,10 @@ void Renderer::RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile
                     pixelIn.uv.x = (lambda0 * v0.uv.x + lambda1 * v1.uv.x + lambda2 * v2.uv.x) * pixelW;
                     pixelIn.uv.y = (lambda0 * v0.uv.y + lambda1 * v1.uv.y + lambda2 * v2.uv.y) * pixelW;
 
-                    Color finalColor = FragmentShader(pixelIn, cam, tri.texture);
+                    // Interpolate light intensity for Gouraud shading
+                    pixelIn.lightIntensity = (lambda0 * v0.lightIntensity + lambda1 * v1.lightIntensity + lambda2 * v2.lightIntensity) * pixelW;
+
+                    Color finalColor = FragmentShader(pixelIn, cam, tri.texture, tri);
                     PutPixel(x, y, finalColor);
                 }
             }
@@ -214,7 +235,7 @@ void Renderer::RasterizeTile(int tileIndex, const CameraS& cam) {
     }
 }
 
-VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat, const Matrix4x4& normalMat) {
+VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat, const Matrix4x4& normalMat, const CameraS& cam) {
     VSOutput out;
     out.position = MultiplyVectorMatrix4(vertex.position, mvp);
 
@@ -237,14 +258,28 @@ ScreenVertex Renderer::PerspectiveDivide(const VSOutput& in) {
 
     out.uv.x = in.uv.x * out.invW;
     out.uv.y = in.uv.y * out.invW;
+    out.lightIntensity = 0.0f;  // Will be set later for Gouraud
 
     return out;
 };
 
-Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const TextureS* texture) {
-    Vector3S lightDir = {0.5, 0.4, 1.0f};
-    Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, in.worldPos));
+float Renderer::ComputeLightIntensity(const Vector3S& normal, const Vector3S& worldPos, const CameraS& cam) {
+    Vector3S lightDir = {0.5f, 0.4f, 1.0f};
     lightDir = Vector3Normalize(lightDir);
+    Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, worldPos));
+
+    float ambient = 0.1f;
+    float diff = std::max(0.0f, Vector3Dot(normal, Vector3Scale(lightDir, -1.0f)));
+    
+    // Specular (Blinn-Phong style)
+    Vector3S refl = Vector3Sub(lightDir, Vector3Scale(Vector3Scale(normal, Vector3Dot(normal, lightDir)), 2));
+    float specularity = powf(std::max(0.0f, Vector3Dot(viewDir, refl)), 16);
+
+    return std::min(1.0f, ambient + diff * 0.5f + specularity * 0.5f);
+}
+
+Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const TextureS* texture, const TriangleData& tri) {
+    // Get base object color from texture or default white
     Color objectColor;
     if (texture && texture->pixels) {
         objectColor = texture->SampleBilinear(in.uv.x, in.uv.y);
@@ -252,14 +287,52 @@ Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const
         objectColor = WHITE;
     }
 
-    float ambient = 0.1f;
-    Vector3S refl = Vector3Sub(lightDir, Vector3Scale(Vector3Scale(in.normal, Vector3Dot(in.normal, lightDir)), 2));
-    float specularity = powf(std::max(0.0f, Vector3Dot(viewDir, refl)), 16);
+    float intensity = 1.0f;
 
-    float diff = std::max(0.0f, Vector3Dot(in.normal, Vector3Scale(lightDir, -1.0f)));
+    switch (currentShadingMode) {
+        case ShadingMode::Unlit:
+            // No lighting calculation, just return the texture color
+            return objectColor;
 
-    float intensity = std::min(1.0f, ambient + diff*0.5f + specularity * 0.5f);
-    if (intensity > 1.0f) intensity = 1.0f;
+        case ShadingMode::Flat:
+            // Use pre-computed flat intensity for entire triangle
+            intensity = tri.flatIntensity;
+            break;
+
+        case ShadingMode::Gouraud:
+            // Use interpolated light intensity from vertices
+            intensity = in.lightIntensity;
+            break;
+
+        case ShadingMode::Cel: {
+            // Compute per-pixel intensity then quantize to bands
+            float rawIntensity = ComputeLightIntensity(in.normal, in.worldPos, cam);
+            
+            // Quantize to 4 bands for toon effect
+            if (rawIntensity > 0.9f) intensity = 1.0f;
+            else if (rawIntensity > 0.5f) intensity = 0.7f;
+            else if (rawIntensity > 0.25f) intensity = 0.4f;
+            else intensity = 0.2f;
+            
+            // Add edge darkening based on view angle for rim effect
+            Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, in.worldPos));
+            float rim = 1.0f - std::max(0.0f, Vector3Dot(in.normal, viewDir));
+            if (rim > 0.7f) {
+                // Darken edges for outline effect
+                intensity *= 0.3f;
+            }
+            break;
+        }
+
+        case ShadingMode::Phong:
+        default:
+            // Full per-pixel Phong lighting
+            intensity = ComputeLightIntensity(in.normal, in.worldPos, cam);
+            break;
+    }
+
+    // Clamp intensity
+    intensity = std::max(0.0f, std::min(1.0f, intensity));
 
     return {
         (unsigned char)(objectColor.r * intensity),
@@ -367,10 +440,10 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
 
     std::vector<VSOutput> processedVertices;
     for (const auto& v : obj.mesh.vertices) {
-        processedVertices.push_back(VertexShader(v, matMVP, matWorld, matNormal));
+        processedVertices.push_back(VertexShader(v, matMVP, matWorld, matNormal, cam));
     }
 
-    for (int i = 0; i < obj.mesh.indices.size(); i += 3) {
+    for (size_t i = 0; i < obj.mesh.indices.size(); i += 3) {
         const VSOutput& vs0 = processedVertices[obj.mesh.indices[i]];
         const VSOutput& vs1 = processedVertices[obj.mesh.indices[i+1]];
         const VSOutput& vs2 = processedVertices[obj.mesh.indices[i+2]];
@@ -380,10 +453,30 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
         std::vector<VSOutput> clippedPolygon = ClipTriangleAgainstFrustum(vs0, vs1, vs2);
 
         if (clippedPolygon.size() >= 3) {
+            // Compute face normal for flat shading (use first 3 vertices)
+            Vector3S edge1 = Vector3Sub(clippedPolygon[1].worldPos, clippedPolygon[0].worldPos);
+            Vector3S edge2 = Vector3Sub(clippedPolygon[2].worldPos, clippedPolygon[0].worldPos);
+            Vector3S faceNormal = Vector3Normalize(Vector3Cross(edge1, edge2));
+            
+            // Compute centroid for flat shading light calculation
+            Vector3S centroid = {
+                (clippedPolygon[0].worldPos.x + clippedPolygon[1].worldPos.x + clippedPolygon[2].worldPos.x) / 3.0f,
+                (clippedPolygon[0].worldPos.y + clippedPolygon[1].worldPos.y + clippedPolygon[2].worldPos.y) / 3.0f,
+                (clippedPolygon[0].worldPos.z + clippedPolygon[1].worldPos.z + clippedPolygon[2].worldPos.z) / 3.0f
+            };
+            float flatIntensity = ComputeLightIntensity(faceNormal, centroid, cam);
+
             ScreenVertex sv0 = PerspectiveDivide(clippedPolygon[0]);
+            // Compute Gouraud lighting per vertex (pre-divide by w for interpolation)
+            sv0.lightIntensity = ComputeLightIntensity(clippedPolygon[0].normal, clippedPolygon[0].worldPos, cam) * sv0.invW;
+            
             for (size_t j = 1; j < clippedPolygon.size() - 1; j++) {
                 ScreenVertex sv1 = PerspectiveDivide(clippedPolygon[j]);
                 ScreenVertex sv2 = PerspectiveDivide(clippedPolygon[j + 1]);
+                
+                // Compute Gouraud lighting for other vertices
+                sv1.lightIntensity = ComputeLightIntensity(clippedPolygon[j].normal, clippedPolygon[j].worldPos, cam) * sv1.invW;
+                sv2.lightIntensity = ComputeLightIntensity(clippedPolygon[j + 1].normal, clippedPolygon[j + 1].worldPos, cam) * sv2.invW;
 
                 TriangleData tri;
                 tri.v0 = sv0;
@@ -391,6 +484,8 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
                 tri.v2 = sv2;
                 tri.area = EdgeFunction(sv0.position, sv1.position, sv2.position);
                 tri.texture = obj.texture;
+                tri.faceNormal = faceNormal;
+                tri.flatIntensity = flatIntensity;
 
                 if (std::abs(tri.area) < 0.001f) continue;
 

@@ -24,6 +24,13 @@ GameState* gState = nullptr;
 void UpdateFrame() {
     float dt = GetFrameTime();
     
+    // Shading mode switching with number keys
+    if (IsKeyPressed(KEY_ONE)) gState->renderer->SetShadingMode(ShadingMode::Phong);
+    if (IsKeyPressed(KEY_TWO)) gState->renderer->SetShadingMode(ShadingMode::Gouraud);
+    if (IsKeyPressed(KEY_THREE)) gState->renderer->SetShadingMode(ShadingMode::Flat);
+    if (IsKeyPressed(KEY_FOUR)) gState->renderer->SetShadingMode(ShadingMode::Cel);
+    if (IsKeyPressed(KEY_FIVE)) gState->renderer->SetShadingMode(ShadingMode::Unlit);
+    
     Vector3S right = {gState->camera.rotationMatrix.m[0][0], gState->camera.rotationMatrix.m[0][1], gState->camera.rotationMatrix.m[0][2]};
     Vector3S up = {gState->camera.rotationMatrix.m[1][0], gState->camera.rotationMatrix.m[1][1], gState->camera.rotationMatrix.m[1][2]};
     Vector3S forward = {gState->camera.rotationMatrix.m[2][0], gState->camera.rotationMatrix.m[2][1], gState->camera.rotationMatrix.m[2][2]};

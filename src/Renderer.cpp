@@ -200,12 +200,12 @@ void Renderer::RasterizeTile(int tileIndex, const CameraS& cam) {
     }
 }
 
-VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat) {
+VSOutput Renderer::VertexShader(const Vertex& vertex, const Matrix4x4&mvp, const Matrix4x4& worldMat, const Matrix4x4& normalMat) {
     VSOutput out;
     out.position = MultiplyVectorMatrix4(vertex.position, mvp);
 
     out.worldPos = MultiplyVectorMatrix(vertex.position, worldMat);
-    out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, worldMat));
+    out.normal = Vector3Normalize(MultiplyVectorDirection(vertex.normal, normalMat));
     out.uv = vertex.uv;
 
     return out;
@@ -327,15 +327,19 @@ std::vector<VSOutput> Renderer::ClipTriangleAgainstFrustum(const VSOutput& v0, c
 }
 
 void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
+    Matrix4x4 matScale = MatrixMakeScale(obj.transform.scale.x, obj.transform.scale.y, obj.transform.scale.z);
     Matrix4x4 matRotZ = MatrixMakeRotationZ(obj.transform.rotation.z);
     Matrix4x4 matRotY = MatrixMakeRotationY(obj.transform.rotation.y);
     Matrix4x4 matRotX = MatrixMakeRotationX(obj.transform.rotation.x);
     Matrix4x4 matTrans = MatrixMakeTranslation(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z);
 
-    Matrix4x4 matWorld = Matrix4x4::Identity();
-    matWorld = MultiplyMatrix(matRotZ, matRotX);
+    Matrix4x4 matWorld = matScale;
+    matWorld = MultiplyMatrix(matWorld, matRotZ);
+    matWorld = MultiplyMatrix(matWorld, matRotX);
     matWorld = MultiplyMatrix(matWorld, matRotY);
     matWorld = MultiplyMatrix(matWorld, matTrans);
+
+    Matrix4x4 matNormal = MatrixInverseTranspose3x3(matWorld);
 
     Matrix4x4 matView = MatrixMakeTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
     matView = MultiplyMatrix(matView, MatrixTranspose(cam.rotationMatrix));
@@ -349,7 +353,7 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
 
     std::vector<VSOutput> processedVertices;
     for (const auto& v : obj.mesh.vertices) {
-        processedVertices.push_back(VertexShader(v, matMVP, matWorld));
+        processedVertices.push_back(VertexShader(v, matMVP, matWorld, matNormal));
     }
 
     for (int i = 0; i < obj.mesh.indices.size(); i += 3) {

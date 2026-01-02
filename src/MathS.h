@@ -100,6 +100,52 @@ inline Matrix4x4 MultiplyMatrix(const Matrix4x4& m1, const Matrix4x4& m2) {
     return out;
 }
 
+inline Matrix4x4 MatrixMakeScale(float sx, float sy, float sz) {
+    Matrix4x4 mat = Matrix4x4::Identity();
+    mat.m[0][0] = sx;
+    mat.m[1][1] = sy;
+    mat.m[2][2] = sz;
+    return mat;
+}
+
+inline Matrix4x4 MatrixInverseTranspose3x3(const Matrix4x4& m) {
+    float a = m.m[0][0], b = m.m[0][1], c = m.m[0][2];
+    float d = m.m[1][0], e = m.m[1][1], f = m.m[1][2];
+    float g = m.m[2][0], h = m.m[2][1], i = m.m[2][2];
+    
+    float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    
+    if (fabsf(det) < 1e-8f) {
+        return Matrix4x4::Identity();
+    }
+    
+    float invDet = 1.0f / det;
+    
+    Matrix4x4 result = Matrix4x4::Identity();
+    
+    float c00 = (e * i - f * h);
+    float c01 = -(d * i - f * g);
+    float c02 = (d * h - e * g);
+    float c10 = -(b * i - c * h);
+    float c11 = (a * i - c * g);
+    float c12 = -(a * h - b * g);
+    float c20 = (b * f - c * e);
+    float c21 = -(a * f - c * d);
+    float c22 = (a * e - b * d);
+    
+    result.m[0][0] = c00 * invDet;
+    result.m[0][1] = c01 * invDet;
+    result.m[0][2] = c02 * invDet;
+    result.m[1][0] = c10 * invDet;
+    result.m[1][1] = c11 * invDet;
+    result.m[1][2] = c12 * invDet;
+    result.m[2][0] = c20 * invDet;
+    result.m[2][1] = c21 * invDet;
+    result.m[2][2] = c22 * invDet;
+    
+    return result;
+}
+
 inline Matrix4x4 MatrixMakeRotationX(float angle) {
     Matrix4x4 mat = Matrix4x4::Identity();
     mat.m[1][1] = cosf(angle); mat.m[1][2] = sinf(angle);

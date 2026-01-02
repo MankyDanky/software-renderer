@@ -69,7 +69,7 @@ private:
     void RasterizeTile(int tileIndex, const CameraS& cam);
     void RasterizeTriangleInTile(const TriangleData& tri, const Tile& tile, const CameraS& cam);
 
-    VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat);
+    VSOutput VertexShader(const Vertex& vertex, const Matrix4x4& mvp, const Matrix4x4& worldMat, const Matrix4x4& normalMat);
     Color FragmentShader(const ScreenVertex& interpolated, const CameraS& cam, const TextureS* texture);
     ScreenVertex PerspectiveDivide(const VSOutput& in);
 

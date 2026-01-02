@@ -12,6 +12,7 @@ int main() {
 
     const float speed = 5.0f;
     const float rotSpeed = 3.0f;
+    float timer = 0.0f;
 
 
     InitWindow(width, height, "C++ Software Renderer");
@@ -81,6 +82,8 @@ int main() {
         cube.transform.rotation.x += dt;
         cube.transform.rotation.y += 2 * dt;
         cube.transform.rotation.z += 3 * dt;
+        cube.transform.scale = {1.5f*fabs(sinf(3*timer)), 1.2f*fabs(cosf(4.0f+3*timer)), 1.0f};
+        timer = fmod(timer + dt, 1000000.0f);
         renderer.Clear(BLACK);
 
         renderer.DrawMesh(cube, camera);

@@ -45,6 +45,7 @@ if(EMSCRIPTEN)
         -sWASM=1
         -sALLOW_MEMORY_GROWTH=1
         --preload-file ${CMAKE_SOURCE_DIR}/models@models
+        --shell-file ${CMAKE_SOURCE_DIR}/shell.html
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)

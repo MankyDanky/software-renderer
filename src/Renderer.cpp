@@ -8,9 +8,11 @@ Renderer::Renderer(int w, int h) : width(w), height(h), tileSize(64) {
     screenTexture = LoadTextureFromImage(img);
     UnloadImage(img);
 
+#ifndef __EMSCRIPTEN__
     numThreads = std::thread::hardware_concurrency();
     if (numThreads == 0) numThreads = 4;
     threadPool = std::make_unique<ThreadPool>(numThreads);
+#endif
 
     InitTiles();
 }
@@ -44,8 +46,13 @@ void Renderer::SetTileSize(int size) {
 }
 
 int Renderer::GetThreadCount() const {
+#ifndef __EMSCRIPTEN__
     return numThreads;
+#else
+    return 1;
+#endif
 }
+
 
 void Renderer::ClearTiles() {
     for (auto& tile : tiles) {
@@ -70,11 +77,12 @@ void Renderer::BinTriangleToTiles(int triangleIndex) {
 }
 
 void Renderer::Clear(Color color) {
+#ifndef __EMSCRIPTEN__
     int pixelsPerThread = (width * height + numThreads - 1) / numThreads;
     for (unsigned int t = 0; t < numThreads; t++) {
-        int start = t * pixelsPerThread;
-        int end = std::min(start + pixelsPerThread, width * height);
-        threadPool->Enqueue([this, start, end, color]() {
+        threadPool->Enqueue([this, t, pixelsPerThread, color]() {
+            int start = t * pixelsPerThread;
+            int end = std::min(start + pixelsPerThread, width * height);
             for (int i = start; i < end; i++) {
                 pixelBuffer[i] = color;
                 depthBuffer[i] = std::numeric_limits<float>::max();
@@ -82,6 +90,12 @@ void Renderer::Clear(Color color) {
         });
     }
     threadPool->WaitAll();
+#else
+    for (int i = 0; i < width * height; i++) {
+        pixelBuffer[i] = color;
+        depthBuffer[i] = std::numeric_limits<float>::max();
+    }
+#endif
 }
 
 void Renderer::Render() {
@@ -394,6 +408,7 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
         }
     }
 
+#ifndef __EMSCRIPTEN__
     int totalTiles = tilesX * tilesY;
     for (int i = 0; i < totalTiles; i++) {
         if (!tiles[i].triangleIndices.empty()) {
@@ -403,4 +418,9 @@ void Renderer::DrawMesh(const GameObject& obj, const CameraS& cam) {
         }
     }
     threadPool->WaitAll();
+#else
+    for (int i = 0; i < (int)tiles.size(); i++) {
+        RasterizeTile(i, cam);
+    }
+#endif
 }

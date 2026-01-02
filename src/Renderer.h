@@ -2,9 +2,12 @@
 #include "raylib.h"
 #include "MathS.h"
 #include "GameObject.h"
-#include "ThreadPool.h"
 #include "CameraS.h"
 #include "Texture.h"
+
+#ifndef __EMSCRIPTEN__
+#include "ThreadPool.h"
+#endif
 
 struct VSOutput {
     Vector4S position;
@@ -55,8 +58,10 @@ private:
     float* depthBuffer;
     Texture2D screenTexture;
 
+#ifndef __EMSCRIPTEN__
     std::unique_ptr<ThreadPool> threadPool;
     unsigned int numThreads;
+#endif
 
     int tileSize;
     int tilesX, tilesY;

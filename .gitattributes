@@ -1,5 +1,2 @@
-build-web/bin/** linguist-generated
-build-web/bin/*.js linguist-generated
-build-web/bin/*.wasm linguist-generated
-build-web/bin/*.html linguist-generated
+build-web/** linguist-generated
 

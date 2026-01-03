@@ -39,24 +39,23 @@ void UpdateFrame() {
     if (IsKeyDown(KEY_S)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(forward, -gState->speed * dt));
     if (IsKeyDown(KEY_D)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(right, gState->speed * dt));
     if (IsKeyDown(KEY_A)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(right, -gState->speed * dt));
-    if (IsKeyDown(KEY_E)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, gState->speed * dt));
-    if (IsKeyDown(KEY_Q)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, -gState->speed * dt));
+    if (IsKeyDown(KEY_SPACE)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, gState->speed * dt));
+    if (IsKeyDown(KEY_LEFT_SHIFT)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, -gState->speed * dt));
 
-    if (IsKeyDown(KEY_LEFT)) {
-        Matrix4x4 rot = MatrixMakeRotationY(-gState->rotSpeed * dt);
-        gState->camera.rotationMatrix = MultiplyMatrix(rot, gState->camera.rotationMatrix);
-    }
-    if (IsKeyDown(KEY_RIGHT)) {
-        Matrix4x4 rot = MatrixMakeRotationY(gState->rotSpeed * dt);
-        gState->camera.rotationMatrix = MultiplyMatrix(rot, gState->camera.rotationMatrix);
-    }
-    if (IsKeyDown(KEY_UP)) {
-        Matrix4x4 rot = MatrixMakeRotationX(-gState->rotSpeed * dt);
-        gState->camera.rotationMatrix = MultiplyMatrix(rot, gState->camera.rotationMatrix);
-    }
-    if (IsKeyDown(KEY_DOWN)) {
-        Matrix4x4 rot = MatrixMakeRotationX(gState->rotSpeed * dt);
-        gState->camera.rotationMatrix = MultiplyMatrix(rot, gState->camera.rotationMatrix);
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        Vector2 mouseDelta = GetMouseDelta();
+        float sensitivity = 0.003f;
+        
+        gState->camera.yaw += mouseDelta.x * sensitivity;
+        gState->camera.pitch += mouseDelta.y * sensitivity;
+        
+        const float maxPitch = 1.5f;
+        if (gState->camera.pitch > maxPitch) gState->camera.pitch = maxPitch;
+        if (gState->camera.pitch < -maxPitch) gState->camera.pitch = -maxPitch;
+        
+        Matrix4x4 yawMat = MatrixMakeRotationY(gState->camera.yaw);
+        Matrix4x4 pitchMat = MatrixMakeRotationX(gState->camera.pitch);
+        gState->camera.rotationMatrix = MultiplyMatrix(pitchMat, yawMat);
     }
 
     gState->cube->transform.scale = {1.5f * fabs(sinf(3 * gState->timer)), 1.0f, 1.0f};
@@ -72,6 +71,7 @@ int main() {
     const int height = 450;
 
     InitWindow(width, height, "C++ Software Renderer");
+    SetTargetFPS(144);
 
     gState = new GameState();
     gState->renderer = new Renderer(width, height);

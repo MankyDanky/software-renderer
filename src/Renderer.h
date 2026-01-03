@@ -83,6 +83,7 @@ private:
     std::vector<Tile> tiles;
     std::vector<TriangleData> triangleBuffer;
     ShadingMode currentShadingMode = ShadingMode::Phong;
+    Font uiFont;
 
     void InitTiles();
     void ClearTiles();
@@ -94,6 +95,7 @@ private:
     Color FragmentShader(const ScreenVertex& interpolated, const CameraS& cam, const TextureS* texture, const TriangleData& tri);
     ScreenVertex PerspectiveDivide(const VSOutput& in);
     float ComputeLightIntensity(const Vector3S& normal, const Vector3S& worldPos, const CameraS& cam);
+    float ComputeDiffuseOnly(const Vector3S& normal);
 
     std::vector<VSOutput> ClipTriangleAgainstFrustum(const VSOutput& v0, const VSOutput& v1, const VSOutput& v2);
     std::vector<VSOutput> ClipPolygonAgainstPlane(const std::vector<VSOutput>& polygon, int planeIndex);

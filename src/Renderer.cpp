@@ -7,6 +7,8 @@ Renderer::Renderer(int w, int h) : width(w), height(h), tileSize(64) {
     Image img = GenImageColor(width, height, BLACK);
     screenTexture = LoadTextureFromImage(img);
     UnloadImage(img);
+    
+    uiFont = LoadFont("fonts/OpenSans.ttf");
 
 #ifndef __EMSCRIPTEN__
     numThreads = std::thread::hardware_concurrency();
@@ -18,6 +20,7 @@ Renderer::Renderer(int w, int h) : width(w), height(h), tileSize(64) {
 }
 
 Renderer::~Renderer() {
+    UnloadFont(uiFont);
     UnloadTexture(screenTexture);
     delete[] pixelBuffer;
     delete[] depthBuffer;
@@ -116,11 +119,12 @@ void Renderer::Render() {
     DrawTexture(screenTexture, 0, 0, WHITE);
     
     int fps = GetFPS();
-    DrawText(TextFormat("FPS: %d", fps), 10, 10, 18, DARKGRAY);
+    const char* fpsText = TextFormat("FPS: %d", fps);
+    DrawTextEx(uiFont, fpsText, {10, 10}, 24, 1, DARKGRAY);
     
     const char* shaderText = TextFormat("Shader: %s", GetShadingModeName());
-    int textWidth = MeasureText(shaderText, 18);
-    DrawText(shaderText, width - textWidth - 10, 10, 18, DARKGRAY);
+    Vector2 textSize = MeasureTextEx(uiFont, shaderText, 24, 1);
+    DrawTextEx(uiFont, shaderText, {(float)(width - textSize.x - 10), 10}, 24, 1, DARKGRAY);
     
     EndDrawing();
 }
@@ -278,6 +282,16 @@ float Renderer::ComputeLightIntensity(const Vector3S& normal, const Vector3S& wo
     return std::min(1.0f, ambient + diff * 0.5f + specularity * 0.5f);
 }
 
+float Renderer::ComputeDiffuseOnly(const Vector3S& normal) {
+    Vector3S lightDir = {0.5f, 0.4f, 1.0f};
+    lightDir = Vector3Normalize(lightDir);
+    
+    float ambient = 0.15f;
+    float diff = std::max(0.0f, Vector3Dot(normal, Vector3Scale(lightDir, -1.0f)));
+    
+    return std::min(1.0f, ambient + diff * 0.85f);
+}
+
 Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const TextureS* texture, const TriangleData& tri) {
     // Get base object color from texture or default white
     Color objectColor;
@@ -305,22 +319,14 @@ Color Renderer::FragmentShader(const ScreenVertex& in, const CameraS& cam, const
             break;
 
         case ShadingMode::Cel: {
-            // Compute per-pixel intensity then quantize to bands
-            float rawIntensity = ComputeLightIntensity(in.normal, in.worldPos, cam);
+            // Compute per-pixel diffuse intensity (no specular) then quantize to bands
+            float rawIntensity = ComputeDiffuseOnly(in.normal);
             
             // Quantize to 4 bands for toon effect
-            if (rawIntensity > 0.9f) intensity = 1.0f;
-            else if (rawIntensity > 0.5f) intensity = 0.7f;
+            if (rawIntensity > 0.8f) intensity = 1.0f;
+            else if (rawIntensity > 0.5f) intensity = 0.65f;
             else if (rawIntensity > 0.25f) intensity = 0.4f;
             else intensity = 0.2f;
-            
-            // Add edge darkening based on view angle for rim effect
-            Vector3S viewDir = Vector3Normalize(Vector3Sub(cam.position, in.worldPos));
-            float rim = 1.0f - std::max(0.0f, Vector3Dot(in.normal, viewDir));
-            if (rim > 0.7f) {
-                // Darken edges for outline effect
-                intensity *= 0.3f;
-            }
             break;
         }
 

@@ -39,13 +39,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 
 if(EMSCRIPTEN)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+    set(PRELOAD_MODELS "--preload-file=${CMAKE_SOURCE_DIR}/models@models")
+    set(PRELOAD_FONTS "--preload-file=${CMAKE_SOURCE_DIR}/fonts@fonts")
+    set(SHELL_FILE "--shell-file=${CMAKE_SOURCE_DIR}/shell.html")
     target_link_options(${PROJECT_NAME} PRIVATE
         -sUSE_GLFW=3
         -sASSERTIONS=1
         -sWASM=1
         -sALLOW_MEMORY_GROWTH=1
-        --preload-file ${CMAKE_SOURCE_DIR}/models@models
-        --shell-file ${CMAKE_SOURCE_DIR}/shell.html
+        ${PRELOAD_MODELS}
+        ${PRELOAD_FONTS}
+        ${SHELL_FILE}
     )
 else()
     target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)

@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <title>Software Renderer</title>
     <style>
+        @font-face {
+            font-family: 'OpenSans';
+            src: url('fonts/OpenSans.ttf') format('truetype');
+        }
         body {
             margin: 0;
             background: #0d0d0d;
@@ -12,7 +16,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: system-ui, sans-serif;
+            font-family: 'OpenSans', system-ui, sans-serif;
         }
         canvas {
             display: block;
@@ -39,8 +43,9 @@
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     <div class="controls">
         <span><kbd>WASD</kbd> move</span>
-        <span><kbd>Q</kbd><kbd>E</kbd> up/down</span>
-        <span><kbd>↑↓←→</kbd> look</span>
+        <span><kbd>Space</kbd><kbd>Shift</kbd> up/down</span>
+        <span><kbd>RMB</kbd> + drag to look</span>
+        <span><kbd>1-5</kbd> shader</span>
     </div>
     <script>
         var Module = { canvas: document.getElementById('canvas') };

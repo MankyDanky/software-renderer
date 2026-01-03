@@ -39,8 +39,8 @@ void UpdateFrame() {
     if (IsKeyDown(KEY_S)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(forward, -gState->speed * dt));
     if (IsKeyDown(KEY_D)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(right, gState->speed * dt));
     if (IsKeyDown(KEY_A)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(right, -gState->speed * dt));
-    if (IsKeyDown(KEY_SPACE)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, gState->speed * dt));
-    if (IsKeyDown(KEY_LEFT_SHIFT)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, -gState->speed * dt));
+    if (IsKeyDown(KEY_SPACE)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, -gState->speed * dt));
+    if (IsKeyDown(KEY_LEFT_SHIFT)) gState->camera.position = Vector3Add(gState->camera.position, Vector3Scale(up, gState->speed * dt));
 
     if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         Vector2 mouseDelta = GetMouseDelta();

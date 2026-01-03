@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/aadikulsh/Documents/CProjects/Software Renderer/build-web/cmake_install.cmake",
+		"/Users/aadikulsh/Documents/CProjects/Software Renderer/build-web/vendor/raylib/cmake_install.cmake",
+		"/Users/aadikulsh/Documents/CProjects/Software Renderer/build-web/vendor/raylib/raylib/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

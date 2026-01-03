@@ -1,5 +1,8 @@
 # C++ Software Renderer
 
+## Credit
+I would like to give due credit to my friend Edem Hoggar(https://github.com/Frostbiiten) for his software renderer which inspired mine.
+
 ## Setup
 - Clone raylib from https://github.com/raysan5/raylib to vendor/
 - run cmake -S . -B build
@@ -7,6 +10,8 @@
 - run the program from build/bin/SoftwareRenderer
 
 ## Gallery
+
+https://github.com/user-attachments/assets/7e40f2d3-ee95-4440-8cff-46183c81d70b
 
 https://github.com/user-attachments/assets/4861e4c2-ae5f-4f1a-a995-ff7bc13980fd
 

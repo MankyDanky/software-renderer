@@ -1,0 +1,15 @@
+{
+  "outputDirectory": "build-web/bin",
+  "rewrites": [
+    { "source": "/", "destination": "/SoftwareRenderer.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    }
+  ]
+}

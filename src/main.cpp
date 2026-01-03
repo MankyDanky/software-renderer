@@ -13,7 +13,7 @@
 struct GameState {
     Renderer* renderer;
     CameraS camera;
-    GameObject* cube;
+    std::vector<GameObject*> objects;
     float timer = 0.0f;
     float speed = 5.0f;
     float rotSpeed = 3.0f;
@@ -24,7 +24,6 @@ GameState* gState = nullptr;
 void UpdateFrame() {
     float dt = GetFrameTime();
     
-    // Shading mode switching with number keys
     if (IsKeyPressed(KEY_ONE)) gState->renderer->SetShadingMode(ShadingMode::Phong);
     if (IsKeyPressed(KEY_TWO)) gState->renderer->SetShadingMode(ShadingMode::Gouraud);
     if (IsKeyPressed(KEY_THREE)) gState->renderer->SetShadingMode(ShadingMode::Flat);
@@ -58,11 +57,26 @@ void UpdateFrame() {
         gState->camera.rotationMatrix = MultiplyMatrix(pitchMat, yawMat);
     }
 
-    gState->cube->transform.scale = {1.5f * fabs(sinf(3 * gState->timer)), 1.0f, 1.0f};
+    float t = gState->timer;
+    
+    gState->objects[0]->transform.scale = {1.0f + 0.2f * sinf(2.0f * t), 1.0f + 0.2f * sinf(2.0f * t), 1.0f + 0.2f * sinf(2.0f * t)};
+    
+    gState->objects[1]->transform.rotation.y = t * 2.0f;
+    
+    gState->objects[2]->transform.position.y = 0.5f * sinf(3.0f * t);
+    
+    gState->objects[3]->transform.rotation.x = t * 1.5f;
+    gState->objects[3]->transform.rotation.z = t * 0.7f;
+    
+    float squash = 1.0f + 0.4f * sinf(4.0f * t);
+    gState->objects[4]->transform.scale = {1.0f / sqrtf(squash), squash, 1.0f / sqrtf(squash)};
+    
     gState->timer = fmod(gState->timer + dt, 1000000.0f);
     
     gState->renderer->Clear(BLACK);
-    gState->renderer->DrawMesh(*gState->cube, gState->camera);
+    for (auto* obj : gState->objects) {
+        gState->renderer->DrawMesh(*obj, gState->camera);
+    }
     gState->renderer->Render();
 }
 
@@ -71,7 +85,7 @@ int main() {
     const int height = 450;
 
     InitWindow(width, height, "C++ Software Renderer");
-    SetTargetFPS(144);
+    SetTargetFPS(0);
 
     gState = new GameState();
     gState->renderer = new Renderer(width, height);
@@ -87,9 +101,21 @@ int main() {
     static TextureS monkeyTexture;
     bool hasLoaded = monkeyTexture.Load("models/ChickenTexture.png");
 
-    gState->cube = new GameObject(loadedMesh);
-    if (hasLoaded) {
-        gState->cube->texture = &monkeyTexture;
+    Vector3S positions[] = {
+        {0.0f, 0.0f, 0.0f},
+        {-6.0f, 0.0f, 0.0f}, 
+        {6.0f, 0.0f, 0.0f},  
+        {-4.0f, 0.0f, 6.0f}, 
+        {4.0f, 0.0f, 6.0f}  
+    };
+    
+    for (int i = 0; i < 5; i++) {
+        GameObject* obj = new GameObject(loadedMesh);
+        obj->transform.position = positions[i];
+        if (hasLoaded) {
+            obj->texture = &monkeyTexture;
+        }
+        gState->objects.push_back(obj);
     }
 
 #ifdef __EMSCRIPTEN__
@@ -100,7 +126,9 @@ int main() {
     }
 #endif
 
-    delete gState->cube;
+    for (auto* obj : gState->objects) {
+        delete obj;
+    }
     delete gState->renderer;
     delete gState;
     CloseWindow();
